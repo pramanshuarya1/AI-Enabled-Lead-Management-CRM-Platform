@@ -116,7 +116,7 @@ def detect_lead_type_atpitch(lead_name: str) -> str:
     return "atpitch_others"
 
 
-def detect_fp_level(course_level: str, lead_name: str = "") -> str:
+def detect_fp_level(course_level: str, lead_name: str = "", default_level: str = "fp_l1") -> str:
     """
     FP levels:
     - FP_L1 / FP_L1_High  → fp_l1
@@ -137,8 +137,8 @@ def detect_fp_level(course_level: str, lead_name: str = "") -> str:
         return "fp_l1"
     if "LOW" in ln:
         return "fp_l2"
-    # Default FP goes to l1
-    return "fp_l1"
+    # Default FP goes to selected level
+    return default_level
 
 
 def parse_date(val):
@@ -395,7 +395,8 @@ def parse_failed_pending(
             # Course level & FP tier
             course_level = get_flexible(row, 'courselevel', 'course_level', 'lead_type')
             opp_name     = get_flexible(row, 'opportunity_name')
-            fp_level     = detect_fp_level(course_level, opp_name or name)
+            selected_campaign = extra.get('campaign_type', 'fp_l1')
+            fp_level     = detect_fp_level(course_level, opp_name or name, default_level=selected_campaign)
 
             if not phone:
                 errors.append({'row': i, 'error': 'Missing phone', 'data': dict(row)})

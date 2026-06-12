@@ -419,6 +419,7 @@ def admin_upload():
             'extra_priority': request.form.get('extra_priority', '').strip(),
             'extra_bootcamp': request.form.get('extra_bootcamp', '').strip(),
             'extra_time':     request.form.get('extra_time', '').strip(),
+            'campaign_type':  campaign_type,
         }
 
         try:
