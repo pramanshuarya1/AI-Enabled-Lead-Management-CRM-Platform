@@ -14,6 +14,11 @@
     <h1>{{ campaign_label }}</h1>
     <p>{{ leads | length }} leads shown</p>
   </div>
+  {% if user.role == 'admin' %}
+  <div class="page-header-right">
+    <a href="{{ url_for('admin_upload') }}?campaign_type={{ campaign_type }}" class="btn btn-primary btn-sm">📤 Upload Leads</a>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Filters -->

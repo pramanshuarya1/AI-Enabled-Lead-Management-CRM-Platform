@@ -281,6 +281,19 @@ document.getElementById('campaign_type').addEventListener('change', function() {
   checkReady();
 });
 
+// Auto-select campaign type from URL query parameter if present
+(function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const campaignTypeParam = urlParams.get('campaign_type');
+  if (campaignTypeParam) {
+    const select = document.getElementById('campaign_type');
+    if (select) {
+      select.value = campaignTypeParam;
+      select.dispatchEvent(new Event('change'));
+    }
+  }
+})();
+
 // Custom multiselect dropdown functions
 function toggleUploadDropdown(event) {
   event.stopPropagation();
