@@ -1137,6 +1137,21 @@ def format_time(value):
         return str(value)
 
 
+@app.template_filter('mask_phone')
+def mask_phone(value, role='agent'):
+    if not value:
+        return '—'
+    if role == 'admin':
+        return value
+    val_str = str(value).strip()
+    if len(val_str) <= 4:
+        return val_str
+    first_two = val_str[:2]
+    last_two = val_str[-2:]
+    middle = '*' * (len(val_str) - 4)
+    return f"{first_two}{middle}{last_two}"
+
+
 @app.template_filter('campaign_label')
 def campaign_label_filter(value):
     return CAMPAIGN_LABELS.get(value, value)

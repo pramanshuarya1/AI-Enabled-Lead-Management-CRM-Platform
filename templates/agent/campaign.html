@@ -93,7 +93,7 @@
             <div style="font-size:0.75rem;color:var(--text-muted);">{{ lead.email }}</div>
           {% endif %}
         </td>
-        <td class="phone-num">{{ lead.contact_no }}</td>
+        <td class="phone-num">{{ lead.contact_no | mask_phone(user.role) }}</td>
         <td style="max-width:180px;">
           <div class="truncate" title="{{ lead.bootcamp_title }}">{{ lead.bootcamp_title or '—' }}</div>
           {% if lead.amount %}

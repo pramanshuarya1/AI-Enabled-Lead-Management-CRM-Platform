@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Follow-Up — {{ lead.lead_name or lead.contact_no }}{% endblock %}
+{% block title %}Follow-Up — {{ lead.lead_name or lead.contact_no | mask_phone(user.role) }}{% endblock %}
 {% block page_title %}Follow-Up Details{% endblock %}
 
 {% block top_actions %}
@@ -14,7 +14,7 @@
   <span class="sep">›</span>
   <a href="{{ url_for('agent_campaign', campaign_type=lead.campaign_type) }}">{{ campaign_label }}</a>
   <span class="sep">›</span>
-  <a href="{{ url_for('agent_lead_detail', lead_id=lead.id) }}">{{ lead.lead_name or lead.contact_no }}</a>
+  <a href="{{ url_for('agent_lead_detail', lead_id=lead.id) }}">{{ lead.lead_name or lead.contact_no | mask_phone(user.role) }}</a>
   <span class="sep">›</span>
   <span class="current">Follow-Up / Conversion</span>
 </div>
@@ -25,7 +25,7 @@
   <div style="flex:1;min-width:0;">
     <div style="font-size:1.1rem;font-weight:800;">{{ lead.lead_name or '—' }}</div>
     <div style="color:var(--text-secondary);font-size:0.85rem;">
-      📞 <span class="phone-num">{{ lead.contact_no }}</span>
+      📞 <span class="phone-num">{{ lead.contact_no | mask_phone(user.role) }}</span>
       &nbsp;·&nbsp;
       {{ lead.bootcamp_title }}
     </div>
