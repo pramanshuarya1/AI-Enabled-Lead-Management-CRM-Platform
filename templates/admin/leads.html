@@ -65,6 +65,7 @@
         <th>Lead Name</th>
         <th>Bootcamp</th>
         <th>Phone</th>
+        <th>Date</th>
         <th>Campaign</th>
         <th>Priority</th>
         <th>Agent</th>
@@ -98,6 +99,7 @@
           {% endif %}
         </td>
         <td class="phone-num">{{ lead.contact_no }}</td>
+        <td style="white-space: nowrap;">{{ lead.bootcamp_date or '—' }}</td>
         <td>
           <span class="badge badge-purple">{{ lead.campaign_type | campaign_label }}</span>
         </td>

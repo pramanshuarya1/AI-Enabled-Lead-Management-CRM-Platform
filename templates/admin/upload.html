@@ -265,9 +265,9 @@ document.getElementById('campaign_type').addEventListener('change', function() {
   document.getElementById('simpleExtraFields').style.display =
     (val !== '') ? 'block' : 'none';
 
-  // Date is only required if campaign type is simple
+  // Date is required for all campaigns except leadsquared (which has its own date columns)
   const dateInput = document.getElementById('extra_date');
-  if (val === 'simple') {
+  if (val !== '' && val !== 'leadsquared') {
     dateInput.required = true;
   } else {
     dateInput.required = false;
