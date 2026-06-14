@@ -55,8 +55,15 @@ graph TD
 ## 🌟 Key Features
 
 ### 👤 Role-Based Access Control (RBAC)
-* **Admin Role:** Full visibility over all campaigns, agent performance metrics, lead uploads, bulk assignments, password resets, and detailed CSV report exports.
-* **Agent Role:** Access restricted to campaigns and leads assigned to them. Agents log calls, track conversion details, and schedule follow-ups.
+* **Admin Role:** Full visibility over all campaigns, agent performance metrics, lead uploads, bulk assignments, password resets, detailed CSV report exports, and custom agent campaign permission assignment.
+* **Agent Role:** Access restricted to campaigns explicitly assigned to them by the administrator. Agents log calls, track conversion details, and view static performance stats.
+
+### 💼 Dynamic Agent Campaign Assignment
+* **Granular Assignment:** Admins can assign individual agents to one or multiple campaigns from the agents dashboard at any time.
+* **Fallback Mappings:** If no campaigns are explicitly assigned, it defaults to the team name based mappings (`SIA_STA_TEAM`, `FP_TEAM`, `UPSELL_TEAM`) to ensure seamless backward compatibility.
+
+### ⏳ Redefined Performance Metrics
+* **Logical Pending Stats:** The agent "Pending" statistic is calculated mathematically as `Pending = Dialed Leads - Connected Leads` (dialed leads that have not successfully connected).
 
 ### 📥 Automated Lead Upload & Parsing
 * **Flexible Parsers:** Supports CSV, TSV, and text uploads.
@@ -92,6 +99,7 @@ CREATE TABLE public.profiles (
     role TEXT NOT NULL CHECK (role IN ('admin', 'agent')),
     is_active BOOLEAN DEFAULT TRUE,
     password TEXT, -- Encrypted/Hashed local passwords
+    campaigns TEXT, -- Comma-separated list of assigned campaign types (e.g. 'atpitch_sia,fp_l1')
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
