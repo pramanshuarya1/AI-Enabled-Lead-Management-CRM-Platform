@@ -66,6 +66,49 @@ def get_current_user():
 
 
 # ============================================================
+# AGENT CAMPAIGN TEAMS AND MAPPINGS
+# ============================================================
+
+SIA_STA_TEAM = {'harsh', 'krishna', 'deepak', 'manmohan', 'kamaljeet'}
+FP_TEAM      = {'akansha', 'kulbir', 'abhisekh', 'faiz ansari'}
+UPSELL_TEAM  = {'anchal', 'muskan', 'khusbu', 'sumaitari', 'sumaitri', 'ameen', 'pankaj', 'jyoti'}
+
+def agent_matches_team(db_name: str, team_set: set) -> bool:
+    if not db_name:
+        return False
+    name_clean = db_name.strip().lower()
+    if name_clean in team_set:
+        return True
+    first_name = name_clean.split()[0]
+    if first_name in team_set:
+        return True
+    for t in team_set:
+        if t in name_clean:
+            return True
+    return False
+
+def get_agent_allowed_campaigns(agent_name: str) -> list:
+    allowed = []
+    if agent_matches_team(agent_name, SIA_STA_TEAM):
+        allowed.extend(['atpitch_sia', 'atpitch_sta'])
+    if agent_matches_team(agent_name, FP_TEAM):
+        allowed.extend(['fp_l1'])
+    if agent_matches_team(agent_name, UPSELL_TEAM):
+        allowed.extend(['upsell', 'atpitch_others'])
+    return allowed
+
+
+@app.context_processor
+def inject_allowed_campaigns():
+    user = get_current_user()
+    if not user:
+        return {'allowed_campaigns': []}
+    if user['role'] == 'admin':
+        return {'allowed_campaigns': ['atpitch_sia', 'atpitch_sta', 'atpitch_others', 'upsell', 'fp_l1']}
+    return {'allowed_campaigns': get_agent_allowed_campaigns(user['name'])}
+
+
+# ============================================================
 # AUTH ROUTES
 # ============================================================
 
@@ -178,7 +221,7 @@ def admin_dashboard():
     # ── Query 1: counts in parallel using thread pool ─────────────────────
     try:
         from concurrent.futures import ThreadPoolExecutor
-        campaign_types = ['atpitch_sia','atpitch_sta','atpitch_others','upsell','fp_l1','fp_l2']
+        campaign_types = ['atpitch_sia','atpitch_sta','atpitch_others','upsell','fp_l1']
 
         queries = {
             'total': supabase_admin.table('leads').select('id', count='exact'),
@@ -511,7 +554,7 @@ def admin_upload():
             leads, errors = parse_file(campaign_type, file_content,
                                         uploaded_by=user['id'], batch_id=batch_id,
                                         extra=extra_meta)
-            # If no specific agents selected, fetch ALL active agents for round-robin auto-assignment
+            # If no specific agents selected, dynamically assign based on each lead's campaign type
             if not agent_names:
                 try:
                     agents_resp = supabase_admin.table('profiles')\
@@ -519,9 +562,29 @@ def admin_upload():
                         .eq('role', 'agent')\
                         .eq('is_active', True)\
                         .execute()
-                    agent_names = [a['name'].strip() for a in agents_resp.data or [] if a.get('name')]
+                    db_active_agents = [a['name'].strip() for a in agents_resp.data or [] if a.get('name')]
                 except Exception:
-                    agent_names = []
+                    db_active_agents = []
+
+                # Group active database agents by their campaign teams using clean substring / first-name checks
+                active_sia_sta = [a for a in db_active_agents if agent_matches_team(a, SIA_STA_TEAM)]
+                active_fp      = [a for a in db_active_agents if agent_matches_team(a, FP_TEAM)]
+                active_upsell  = [a for a in db_active_agents if agent_matches_team(a, UPSELL_TEAM)]
+
+                for lead in leads:
+                    if not lead.get('agent_name'):
+                        ct = lead.get('campaign_type') or campaign_type
+                        if ct in ['atpitch_sia', 'atpitch_sta']:
+                            team_agents = active_sia_sta
+                        elif ct == 'fp_l1':
+                            team_agents = active_fp
+                        elif ct in ['upsell', 'atpitch_others']:
+                            team_agents = active_upsell
+                        else:
+                            team_agents = db_active_agents
+                        
+                        if team_agents:
+                            lead['agent_name'] = ", ".join(team_agents)
 
             if agent_names:
                 all_agents_str = ", ".join(agent_names)
@@ -632,6 +695,8 @@ def admin_leads():
             count_query = count_query.eq('campaign_type', campaign_type)
         if status:
             count_query = count_query.eq('final_status', status)
+        if search:
+            count_query = count_query.or_(f'lead_name.ilike.%{search}%,contact_no.ilike.%{search}%,bootcamp_title.ilike.%{search}%')
         count_result = count_query.execute()
         total = count_result.count or 0
     except Exception as e:
@@ -838,8 +903,7 @@ CAMPAIGN_LABELS = {
     'atpitch_sta': 'Atpitch STA',
     'atpitch_others': 'Atpitch Others',
     'upsell': 'Upsell OB',
-    'fp_l1': 'FP OB (L1 / High)',
-    'fp_l2': 'FP OB (L2 / Low)',
+    'fp_l1': 'FP OB Campaign',
 }
 
 CAMPAIGN_ICONS = {
@@ -848,7 +912,6 @@ CAMPAIGN_ICONS = {
     'atpitch_others': '🎯',
     'upsell': '⬆️',
     'fp_l1': '💳',
-    'fp_l2': '🔄',
 }
 
 CAMPAIGN_COLORS = {
@@ -857,7 +920,6 @@ CAMPAIGN_COLORS = {
     'atpitch_others': 'teal',
     'upsell': 'orange',
     'fp_l1': 'green',
-    'fp_l2': 'red',
 }
 
 
@@ -874,9 +936,11 @@ def agent_dashboard():
         ('atpitch_sta',    'Atpitch STA',        '📊', 'blue'),
         ('atpitch_others', 'Atpitch Others',     '🎯', 'teal'),
         ('upsell',         'Upsell OB',          '⬆️', 'orange'),
-        ('fp_l1',          'FP OB (L1 / High)',  '💳', 'green'),
-        ('fp_l2',          'FP OB (L2 / Low)',   '🔄', 'red'),
+        ('fp_l1',          'FP OB Campaign',     '💳', 'green'),
     ]
+    if not is_admin:
+        allowed = get_agent_allowed_campaigns(agent_name)
+        _camps = [c for c in _camps if c[0] in allowed]
     _ctypes = [c[0] for c in _camps]
 
     # ── Parallel Supabase count queries ───────────────────────────────────
@@ -961,6 +1025,12 @@ def agent_campaign(campaign_type):
     agent_name = user['name']
     is_admin = user['role'] == 'admin'
 
+    if not is_admin:
+        allowed = get_agent_allowed_campaigns(agent_name)
+        if campaign_type not in allowed:
+            flash('Access denied. You do not have access to this campaign.', 'error')
+            return redirect(url_for('agent_dashboard'))
+
     status_filter = request.args.get('status', '')
     priority_filter = request.args.get('priority', '')
     search = request.args.get('search', '').strip()
@@ -1013,6 +1083,10 @@ def agent_lead_detail(lead_id):
         # Enforce agent access rules
         if user['role'] != 'admin':
             agent_name = user['name']
+            allowed = get_agent_allowed_campaigns(agent_name)
+            if lead.get('campaign_type') not in allowed:
+                flash('Access denied.', 'error')
+                return redirect(url_for('agent_dashboard'))
             assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
             if agent_name not in assigned_agents:
                 flash('Access denied.', 'error')
@@ -1050,6 +1124,10 @@ def agent_call_log(lead_id):
         # Enforce agent access rules
         if user['role'] != 'admin':
             agent_name = user['name']
+            allowed = get_agent_allowed_campaigns(agent_name)
+            if lead.get('campaign_type') not in allowed:
+                flash('Access denied.', 'error')
+                return redirect(url_for('agent_dashboard'))
             assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
             if agent_name not in assigned_agents:
                 flash('Access denied.', 'error')
@@ -1103,8 +1181,31 @@ def agent_call_log(lead_id):
                 call_data['comments'] = request.form.get('comments', '')
 
                 if call_status == 'follow_up':
-                    call_data['follow_up_date'] = request.form.get('follow_up_date') or None
-                    call_data['follow_up_time'] = request.form.get('follow_up_time') or None
+                    fu_date_str = request.form.get('follow_up_date', '').strip()
+                    fu_time_str = request.form.get('follow_up_time', '').strip()
+
+                    if fu_date_str:
+                        try:
+                            from datetime import date, time, timedelta
+                            ist = timezone(timedelta(hours=5, minutes=30))
+                            now_ist = datetime.now(ist)
+
+                            fu_date = date.fromisoformat(fu_date_str)
+                            if fu_date < now_ist.date():
+                                flash('Follow-up date cannot be in the past.', 'error')
+                                return redirect(url_for('agent_call_log', lead_id=lead_id))
+
+                            if fu_date == now_ist.date() and fu_time_str:
+                                fu_time = time.fromisoformat(fu_time_str)
+                                if fu_time < now_ist.time():
+                                    flash('Follow-up time cannot be in the past.', 'error')
+                                    return redirect(url_for('agent_call_log', lead_id=lead_id))
+                        except Exception as ve:
+                            flash(f'Invalid date/time format: {ve}', 'error')
+                            return redirect(url_for('agent_call_log', lead_id=lead_id))
+
+                    call_data['follow_up_date'] = fu_date_str or None
+                    call_data['follow_up_time'] = fu_time_str or None
 
                 if call_status == 'converted':
                     call_data['amount_paid'] = float(request.form.get('amount_paid') or 0) or None
@@ -1127,7 +1228,7 @@ def agent_call_log(lead_id):
 
             # Optional Lead Transfer/Reassignment
             transfer_agent = request.form.get('transfer_agent', '').strip()
-            if transfer_agent:
+            if transfer_agent and user['role'] == 'admin':
                 supabase_admin.table('leads')\
                     .update({'agent_name': transfer_agent})\
                     .eq('id', lead_id)\
@@ -1135,23 +1236,6 @@ def agent_call_log(lead_id):
                 flash(f'Call logged and lead successfully transferred to {transfer_agent}!', 'success')
                 # Redirect to agent dashboard since this lead is no longer assigned to this agent
                 return redirect(url_for('agent_dashboard'))
-            else:
-                # If an agent makes an entry on the user, update the lead's agent_name to show all active agents
-                try:
-                    agents_resp = supabase_admin.table('profiles')\
-                        .select('name')\
-                        .eq('role', 'agent')\
-                        .eq('is_active', True)\
-                        .execute()
-                    active_agents = [a['name'].strip() for a in agents_resp.data or [] if a.get('name')]
-                    if active_agents:
-                        all_agents_str = ", ".join(active_agents)
-                        supabase_admin.table('leads')\
-                            .update({'agent_name': all_agents_str})\
-                            .eq('id', lead_id)\
-                            .execute()
-                except Exception as e:
-                    app.logger.error(f"Error updating agent_name to show all agents: {e}")
 
             flash('Call logged successfully!', 'success')
             return redirect(url_for('agent_lead_detail', lead_id=lead_id))
@@ -1194,6 +1278,25 @@ def agent_followup(lead_id):
         lead_resp = supabase_admin.table('leads').select('*').eq('id', lead_id).single().execute()
         lead = lead_resp.data
 
+        if not lead:
+            flash('Lead not found.', 'error')
+            return redirect(url_for('agent_dashboard'))
+
+        # Enforce agent access rules
+        if user['role'] != 'admin':
+            agent_name = user['name']
+            allowed = get_agent_allowed_campaigns(agent_name)
+            if lead.get('campaign_type') not in allowed:
+                flash('Access denied.', 'error')
+                return redirect(url_for('agent_dashboard'))
+            assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
+            if agent_name not in assigned_agents:
+                flash('Access denied.', 'error')
+                return redirect(url_for('agent_dashboard'))
+            if lead.get('final_status') == 'Follow Up' and lead.get('contacted_by') and lead.get('contacted_by') != agent_name:
+                flash('Access denied. This follow-up is owned by another agent.', 'error')
+                return redirect(url_for('agent_dashboard'))
+
         calls_resp = supabase_admin.table('call_attempts').select('*').eq('lead_id', lead_id).order('attempt_number').execute()
         calls = calls_resp.data or []
 
@@ -1224,44 +1327,72 @@ def agent_followups():
     campaign_filter = request.args.get('campaign_type', '')
     priority_filter = request.args.get('priority', '')
 
+    all_camps = [
+        ('atpitch_sia',    '📈 Atpitch SIA'),
+        ('atpitch_sta',    '📊 Atpitch STA'),
+        ('atpitch_others', '🎯 Atpitch Others'),
+        ('upsell',         '⬆️ Upsell OB'),
+        ('fp_l1',          '💳 FP OB Campaign'),
+    ]
+
+    if not is_admin:
+        allowed = get_agent_allowed_campaigns(agent_name)
+        campaigns_list = [c for c in all_camps if c[0] in allowed]
+    else:
+        campaigns_list = all_camps
+
+    leads = []
     try:
-        query = supabase_admin.table('leads').select('*').eq('final_status', 'Follow Up')
-        if not is_admin:
-            query = query.ilike('agent_name', f'%{agent_name}%')
-            query = query.or_(f"contacted_by.is.null,contacted_by.eq.{agent_name}")
-        if campaign_filter:
-            query = query.eq('campaign_type', campaign_filter)
-        if priority_filter:
-            query = query.eq('priority', priority_filter)
-        if search:
-            query = query.or_(f'lead_name.ilike.%{search}%,contact_no.ilike.%{search}%,bootcamp_title.ilike.%{search}%')
+        if not is_admin and not allowed:
+            # Short-circuit if non-admin has no allowed campaigns
+            leads = []
+        else:
+            query = supabase_admin.table('leads').select('*').eq('final_status', 'Follow Up')
+            if not is_admin:
+                query = query.ilike('agent_name', f'%{agent_name}%')
+                query = query.or_(f"contacted_by.is.null,contacted_by.eq.{agent_name}")
+                if campaign_filter:
+                    if campaign_filter not in allowed:
+                        flash('Access denied to this campaign.', 'error')
+                        return redirect(url_for('agent_dashboard'))
+                    query = query.eq('campaign_type', campaign_filter)
+                else:
+                    query = query.in_('campaign_type', allowed)
+            else:
+                if campaign_filter:
+                    query = query.eq('campaign_type', campaign_filter)
 
-        leads_resp = query.order('last_call_date', desc=True).limit(100).execute()
-        leads = leads_resp.data or []
+            if priority_filter:
+                query = query.eq('priority', priority_filter)
+            if search:
+                query = query.or_(f'lead_name.ilike.%{search}%,contact_no.ilike.%{search}%,bootcamp_title.ilike.%{search}%')
 
-        # Enrich with scheduled follow-up date/time from call_attempts
-        lead_ids = [l['id'] for l in leads]
-        followup_info = {}
-        if lead_ids:
-            attempts_resp = supabase_admin.table('call_attempts')\
-                .select('lead_id,follow_up_date,follow_up_time')\
-                .in_('lead_id', lead_ids)\
-                .eq('call_status', 'follow_up')\
-                .order('called_at', desc=True)\
-                .execute()
+            leads_resp = query.order('last_call_date', desc=True).limit(100).execute()
+            leads = leads_resp.data or []
 
-            for att in (attempts_resp.data or []):
-                l_id = att.get('lead_id')
-                if l_id not in followup_info:
-                    followup_info[l_id] = {
-                        'date': att.get('follow_up_date'),
-                        'time': att.get('follow_up_time')
-                    }
+            # Enrich with scheduled follow-up date/time from call_attempts
+            lead_ids = [l['id'] for l in leads]
+            followup_info = {}
+            if lead_ids:
+                attempts_resp = supabase_admin.table('call_attempts')\
+                    .select('lead_id,follow_up_date,follow_up_time')\
+                    .in_('lead_id', lead_ids)\
+                    .eq('call_status', 'follow_up')\
+                    .order('called_at', desc=True)\
+                    .execute()
 
-        for lead in leads:
-            info = followup_info.get(lead['id'], {})
-            lead['follow_up_date'] = info.get('date') or lead.get('fp_date')
-            lead['follow_up_time'] = info.get('time') or lead.get('fp_time')
+                for att in (attempts_resp.data or []):
+                    l_id = att.get('lead_id')
+                    if l_id not in followup_info:
+                        followup_info[l_id] = {
+                            'date': att.get('follow_up_date'),
+                            'time': att.get('follow_up_time')
+                        }
+
+            for lead in leads:
+                info = followup_info.get(lead['id'], {})
+                lead['follow_up_date'] = info.get('date') or lead.get('fp_date')
+                lead['follow_up_time'] = info.get('time') or lead.get('fp_time')
 
     except Exception as e:
         leads = []
@@ -1272,7 +1403,8 @@ def agent_followups():
                            leads=leads,
                            search=search,
                            campaign_filter=campaign_filter,
-                           priority_filter=priority_filter)
+                           priority_filter=priority_filter,
+                           campaigns_list=campaigns_list)
 
 
 # ============================================================
@@ -1282,11 +1414,30 @@ def agent_followups():
 @app.route('/api/leads/<lead_id>/update-status', methods=['POST'])
 @login_required
 def api_update_lead_status(lead_id):
+    user = get_current_user()
     data = request.get_json()
     new_status = data.get('status', '')
     if not new_status:
         return jsonify({'error': 'Status required'}), 400
     try:
+        # Fetch lead for verification
+        lead_resp = supabase_admin.table('leads').select('*').eq('id', lead_id).single().execute()
+        lead = lead_resp.data
+        if not lead:
+            return jsonify({'error': 'Lead not found'}), 404
+
+        if user['role'] != 'admin':
+            agent_name = user['name']
+            allowed = get_agent_allowed_campaigns(agent_name)
+            if lead.get('campaign_type') not in allowed:
+                return jsonify({'error': 'Access denied'}), 403
+            
+            assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
+            if agent_name not in assigned_agents:
+                return jsonify({'error': 'Access denied'}), 403
+            if lead.get('final_status') == 'Follow Up' and lead.get('contacted_by') and lead.get('contacted_by') != agent_name:
+                return jsonify({'error': 'Access denied. This follow-up is owned by another agent.'}), 403
+
         supabase_admin.table('leads').update({
             'final_status': new_status,
             'updated_at': datetime.now(timezone.utc).isoformat()
@@ -1310,10 +1461,22 @@ def api_search_leads():
             'id,lead_name,contact_no,bootcamp_title,final_status,campaign_type'
         ).or_(f'lead_name.ilike.%{q}%,contact_no.ilike.%{q}%').limit(10)
 
-        if campaign:
-            query = query.eq('campaign_type', campaign)
         if user['role'] == 'agent':
+            allowed = get_agent_allowed_campaigns(user['name'])
+            if not allowed:
+                return jsonify([])
+            
+            if campaign:
+                if campaign not in allowed:
+                    return jsonify([])
+                query = query.eq('campaign_type', campaign)
+            else:
+                query = query.in_('campaign_type', allowed)
+            
             query = query.ilike('agent_name', f'%{user["name"]}%')
+        else:
+            if campaign:
+                query = query.eq('campaign_type', campaign)
 
         result = query.execute()
         data = result.data or []
@@ -1427,8 +1590,25 @@ def status_class(status):
 
 @app.template_filter('priority_class')
 def priority_class(p):
-    mapping = {'P1': 'priority-p1', 'P2': 'priority-p2', 'P3': 'priority-p3'}
-    return mapping.get(str(p).upper(), 'priority-p3')
+    mapping = {
+        'P1': 'priority-p1', 'P2': 'priority-p2', 'P3': 'priority-p3',
+        'L1': 'priority-p1', 'L2': 'priority-p2'
+    }
+    return mapping.get(str(p).upper().strip(), 'priority-p3')
+
+
+@app.template_filter('display_level')
+def display_level(priority, campaign_type):
+    if not priority:
+        return '—'
+    p = str(priority).upper().strip()
+    if campaign_type == 'fp_l1':
+        if p in ['P1', 'L1']:
+            return 'L1'
+        if p in ['P2', 'P3', 'L2']:
+            return 'L2'
+        return p
+    return p
 
 
 @app.template_filter('inr')
@@ -1443,7 +1623,7 @@ def inr_format(value):
 
 @app.template_filter('display_agent_name')
 def display_agent_name_filter(value):
-    if not value or ',' in str(value):
+    if not value:
         return None
     return str(value).strip()
 

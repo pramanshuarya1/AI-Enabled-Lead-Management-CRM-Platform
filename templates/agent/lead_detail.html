@@ -32,7 +32,7 @@
     </div>
     <div class="lead-hero-tags">
       <span class="badge {{ lead.final_status | status_class }}">{{ lead.final_status }}</span>
-      {% if lead.priority %}<span class="{{ lead.priority | priority_class }}">{{ lead.priority }}</span>{% endif %}
+      {% if lead.priority %}<span class="{{ lead.priority | priority_class }}">Level: {{ lead.priority | display_level(lead.campaign_type) }}</span>{% endif %}
       <span class="badge badge-purple">{{ lead.campaign_type | campaign_label }}</span>
       {% if lead.lead_type %}<span class="badge badge-neutral">{{ lead.lead_type }}</span>{% endif %}
     </div>
@@ -84,11 +84,10 @@
         <div class="lead-info-item">
           <div class="lead-info-label">Agent</div>
           <div class="lead-info-value">
-            {% if lead.final_status == 'Converted' and lead.contacted_by %}
+            {% if lead.contacted_by %}
               <span class="agent-tag">🎧 {{ lead.contacted_by }}</span>
             {% else %}
-              {% set display_agent = lead.agent_name | display_agent_name %}
-              {% if display_agent %}<span class="agent-tag">🎧 {{ display_agent }}</span>{% else %}—{% endif %}
+              —
             {% endif %}
           </div>
         </div>
@@ -109,7 +108,7 @@
     </div>
 
     <!-- FP-specific fields -->
-    {% if lead.campaign_type in ['fp_l1', 'fp_l2'] %}
+    {% if lead.campaign_type == 'fp_l1' %}
     <div class="card mb-6">
       <div class="card-header">
         <span class="card-title">💳 Payment Info</span>

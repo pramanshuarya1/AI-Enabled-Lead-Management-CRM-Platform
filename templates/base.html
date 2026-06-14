@@ -62,14 +62,15 @@
           ('atpitch_sta',    '📊', 'Atpitch STA'),
           ('atpitch_others', '🎯', 'Atpitch Others'),
           ('upsell',         '⬆️', 'Upsell OB'),
-          ('fp_l1',          '💳', 'FP OB L1/High'),
-          ('fp_l2',          '🔄', 'FP OB L2/Low'),
+          ('fp_l1',          '💳', 'FP OB Campaign'),
         ] %}
         {% for ctype, icon, label in sidebar_campaigns %}
-          <a href="{{ url_for('agent_campaign', campaign_type=ctype) }}"
-             class="nav-item {% if request.args.get('campaign_type') == ctype or (request.view_args and request.view_args.get('campaign_type') == ctype) %}active{% endif %}">
-            <span class="nav-icon">{{ icon }}</span> {{ label }}
-          </a>
+          {% if ctype in allowed_campaigns %}
+            <a href="{{ url_for('agent_campaign', campaign_type=ctype) }}"
+               class="nav-item {% if request.args.get('campaign_type') == ctype or (request.view_args and request.view_args.get('campaign_type') == ctype) %}active{% endif %}">
+              <span class="nav-icon">{{ icon }}</span> {{ label }}
+            </a>
+          {% endif %}
         {% endfor %}
       </nav>
 

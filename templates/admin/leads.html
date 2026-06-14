@@ -21,17 +21,16 @@
       <input type="text" name="search" placeholder="Search by name or phone..." value="{{ search }}">
     </div>
 
-    <select name="campaign_type" class="form-control" style="width:auto;padding:8px 32px 8px 12px;">
+    <select name="campaign_type" class="form-control" onchange="this.form.submit()" style="width:auto;padding:8px 32px 8px 12px;">
       <option value="">All Campaigns</option>
       <option value="atpitch_sia"    {% if campaign_type=='atpitch_sia' %}selected{% endif %}>Atpitch SIA</option>
       <option value="atpitch_sta"    {% if campaign_type=='atpitch_sta' %}selected{% endif %}>Atpitch STA</option>
       <option value="atpitch_others" {% if campaign_type=='atpitch_others' %}selected{% endif %}>Atpitch Others</option>
       <option value="upsell"         {% if campaign_type=='upsell' %}selected{% endif %}>Upsell OB</option>
-      <option value="fp_l1"          {% if campaign_type=='fp_l1' %}selected{% endif %}>FP L1/High</option>
-      <option value="fp_l2"          {% if campaign_type=='fp_l2' %}selected{% endif %}>FP L2/Low</option>
+      <option value="fp_l1"          {% if campaign_type=='fp_l1' %}selected{% endif %}>FP OB Campaign</option>
     </select>
 
-    <select name="status" class="form-control" style="width:auto;padding:8px 32px 8px 12px;">
+    <select name="status" class="form-control" onchange="this.form.submit()" style="width:auto;padding:8px 32px 8px 12px;">
       <option value="">All Statuses</option>
       <option value="Pending"        {% if status=='Pending' %}selected{% endif %}>Pending</option>
       <option value="Follow Up"      {% if status=='Follow Up' %}selected{% endif %}>Follow Up</option>
@@ -67,9 +66,8 @@
         <th>Phone</th>
         <th>Date</th>
         <th>Campaign</th>
-        <th>Priority</th>
+        <th>Level</th>
         <th>Agent</th>
-        <th>Contacted By</th>
         <th>Status</th>
         <th>Calls</th>
         <th>Last Updated</th>
@@ -104,17 +102,11 @@
           <span class="badge badge-purple">{{ lead.campaign_type | campaign_label }}</span>
         </td>
         <td>
-          <span class="{{ lead.priority | priority_class }}">{{ lead.priority or '—' }}</span>
-        </td>
-        <td>
-          {% set display_agent = lead.agent_name | display_agent_name %}
-          {% if display_agent %}
-            <span class="agent-tag">🎧 {{ display_agent }}</span>
-          {% else %}—{% endif %}
+          <span class="{{ lead.priority | priority_class }}">{{ lead.priority | display_level(lead.campaign_type) }}</span>
         </td>
         <td>
           {% if lead.contacted_by %}
-            <span class="agent-tag" style="font-size:0.75rem;">🎧 {{ lead.contacted_by }}</span>
+            <span class="agent-tag">🎧 {{ lead.contacted_by }}</span>
           {% else %}
             <span style="color:var(--text-muted);">—</span>
           {% endif %}

@@ -28,7 +28,7 @@
       <input type="text" name="search" placeholder="Search by name or phone..." value="{{ search }}">
     </div>
 
-    <select name="status" class="form-control" style="width:auto;padding:8px 32px 8px 12px;">
+    <select name="status" class="form-control" onchange="this.form.submit()" style="width:auto;padding:8px 32px 8px 12px;">
       <option value="">All Statuses</option>
       <option value="Pending"          {% if status_filter=='Pending' %}selected{% endif %}>⏳ Pending</option>
       <option value="Follow Up"        {% if status_filter=='Follow Up' %}selected{% endif %}>🔁 Follow Up</option>
@@ -38,11 +38,16 @@
       <option value="Discarded"        {% if status_filter=='Discarded' %}selected{% endif %}>🗑 Discarded</option>
     </select>
 
-    <select name="priority" class="form-control" style="width:auto;padding:8px 32px 8px 12px;">
-      <option value="">All Priorities</option>
-      <option value="P1" {% if priority_filter=='P1' %}selected{% endif %}>🔴 P1 — High</option>
-      <option value="P2" {% if priority_filter=='P2' %}selected{% endif %}>🟡 P2 — Medium</option>
-      <option value="P3" {% if priority_filter=='P3' %}selected{% endif %}>⚪ P3 — Low</option>
+    <select name="priority" class="form-control" onchange="this.form.submit()" style="width:auto;padding:8px 32px 8px 12px;">
+      <option value="">All Levels</option>
+      {% if campaign_type == 'fp_l1' %}
+        <option value="L1" {% if priority_filter=='L1' %}selected{% endif %}>🔴 L1 — High</option>
+        <option value="L2" {% if priority_filter=='L2' %}selected{% endif %}>🟡 L2 — Low</option>
+      {% else %}
+        <option value="P1" {% if priority_filter=='P1' %}selected{% endif %}>🔴 P1 — High</option>
+        <option value="P2" {% if priority_filter=='P2' %}selected{% endif %}>🟡 P2 — Medium</option>
+        <option value="P3" {% if priority_filter=='P3' %}selected{% endif %}>⚪ P3 — Low</option>
+      {% endif %}
     </select>
 
     <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
@@ -62,8 +67,13 @@
      class="filter-chip {% if status_filter=='Follow Up' %}active{% endif %}">🔁 Follow Up</a>
   <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, status='Converted') }}"
      class="filter-chip {% if status_filter=='Converted' %}active{% endif %}">✅ Converted</a>
-  <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, priority='P1') }}"
-     class="filter-chip {% if priority_filter=='P1' %}active{% endif %}">🔴 P1 Only</a>
+  {% if campaign_type == 'fp_l1' %}
+    <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, priority='L1') }}"
+       class="filter-chip {% if priority_filter=='L1' %}active{% endif %}">🔴 L1 Level Only</a>
+  {% else %}
+    <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, priority='P1') }}"
+       class="filter-chip {% if priority_filter=='P1' %}active{% endif %}">🔴 P1 Level Only</a>
+  {% endif %}
 </div>
 
 <!-- Leads Table -->
@@ -76,12 +86,11 @@
         <th>Phone</th>
         <th>Bootcamp</th>
         <th>Date</th>
-        <th>Priority</th>
+        <th>Level</th>
         <th>Agent</th>
         <th>Status</th>
         <th>Attempts</th>
         <th>Last Called</th>
-        <th>Contacted By</th>
         <th>Action</th>
       </tr>
     </thead>
@@ -103,17 +112,16 @@
         </td>
         <td class="muted" style="white-space: nowrap;">
           <div>{{ lead.bootcamp_date or '—' }}</div>
-          {% if (campaign_type == 'fp_l1' or campaign_type == 'fp_l2') and lead.fp_time %}
+          {% if campaign_type == 'fp_l1' and lead.fp_time %}
             <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">⏰ {{ lead.fp_time | format_time }}</div>
           {% endif %}
         </td>
         <td>
-          <span class="{{ lead.priority | priority_class }}">{{ lead.priority or '—' }}</span>
+          <span class="{{ lead.priority | priority_class }}">{{ lead.priority | display_level(lead.campaign_type) }}</span>
         </td>
         <td>
-          {% set display_agent = lead.agent_name | display_agent_name %}
-          {% if display_agent %}
-            <span class="agent-tag">🎧 {{ display_agent }}</span>
+          {% if lead.contacted_by %}
+            <span class="agent-tag">🎧 {{ lead.contacted_by }}</span>
           {% else %}
             <span style="color:var(--text-muted);">—</span>
           {% endif %}
@@ -126,13 +134,6 @@
         </td>
         <td class="muted text-sm">
           {{ lead.last_call_date | format_dt if lead.last_call_date else '—' }}
-        </td>
-        <td>
-          {% if lead.contacted_by %}
-            <span class="agent-tag" style="font-size:0.75rem;">🎧 {{ lead.contacted_by }}</span>
-          {% else %}
-            <span style="color:var(--text-muted);">—</span>
-          {% endif %}
         </td>
         <td onclick="event.stopPropagation()">
           <div style="display:flex;gap:6px;">

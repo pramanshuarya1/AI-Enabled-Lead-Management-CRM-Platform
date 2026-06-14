@@ -65,7 +65,7 @@
   {% if detail.converted_leads %}
   <table>
     <thead><tr>
-      <th>Lead Name / Bootcamp</th><th>Phone</th><th>Campaign</th><th>Priority</th><th>Agent</th><th>Converted On</th><th></th>
+      <th>Lead Name / Bootcamp</th><th>Phone</th><th>Campaign</th><th>Level</th><th>Agent</th><th>Converted On</th><th></th>
     </tr></thead>
     <tbody>
     {% for lead in detail.converted_leads %}
@@ -76,7 +76,7 @@
       </td>
       <td class="phone-num">{{ lead.contact_no }}</td>
       <td><span class="badge badge-purple">{{ lead.campaign_type | campaign_label }}</span></td>
-      <td>{{ lead.priority or '—' }}</td>
+      <td>{{ lead.priority | display_level(lead.campaign_type) }}</td>
       <td>
         <form method="POST" action="{{ url_for('admin_leads_assign') }}" style="display:inline-block;margin:0;">
           <input type="hidden" name="lead_ids" value="{{ lead.id }}">
@@ -111,7 +111,7 @@
   {% if detail.follow_up_leads %}
   <table>
     <thead><tr>
-      <th>Lead Name / Bootcamp</th><th>Phone</th><th>Campaign</th><th>Priority</th><th>Agent</th><th>Last Called</th><th></th>
+      <th>Lead Name / Bootcamp</th><th>Phone</th><th>Campaign</th><th>Level</th><th>Agent</th><th>Last Called</th><th></th>
     </tr></thead>
     <tbody>
     {% for lead in detail.follow_up_leads %}
@@ -122,7 +122,7 @@
       </td>
       <td class="phone-num">{{ lead.contact_no }}</td>
       <td><span class="badge badge-purple">{{ lead.campaign_type | campaign_label }}</span></td>
-      <td>{{ lead.priority or '—' }}</td>
+      <td>{{ lead.priority | display_level(lead.campaign_type) }}</td>
       <td>
         <form method="POST" action="{{ url_for('admin_leads_assign') }}" style="display:inline-block;margin:0;">
           <input type="hidden" name="lead_ids" value="{{ lead.id }}">
@@ -161,7 +161,7 @@
   {% if detail.overdue_followups %}
   <table>
     <thead><tr>
-      <th>Lead Name / Bootcamp</th><th>Phone</th><th>Campaign</th><th>Priority</th><th>Agent</th><th>Scheduled Follow-up</th><th>Time Overdue</th><th></th>
+      <th>Lead Name / Bootcamp</th><th>Phone</th><th>Campaign</th><th>Level</th><th>Agent</th><th>Scheduled Follow-up</th><th>Time Overdue</th><th></th>
     </tr></thead>
     <tbody>
     {% for lead in detail.overdue_followups %}
@@ -172,7 +172,7 @@
       </td>
       <td class="phone-num">{{ lead.contact_no }}</td>
       <td><span class="badge badge-purple">{{ lead.campaign_type | campaign_label }}</span></td>
-      <td>{{ lead.priority or '—' }}</td>
+      <td>{{ lead.priority | display_level(lead.campaign_type) }}</td>
       <td>
         <form method="POST" action="{{ url_for('admin_leads_assign') }}" style="display:inline-block;margin:0;">
           <input type="hidden" name="lead_ids" value="{{ lead.id }}">
@@ -250,8 +250,7 @@
       ('atpitch_sta',    '📊', 'Atpitch STA',    'blue'),
       ('atpitch_others', '🎯', 'Atpitch Others', 'teal'),
       ('upsell',         '⬆️', 'Upsell OB',      'orange'),
-      ('fp_l1',          '💳', 'FP OB L1/High',  'green'),
-      ('fp_l2',          '🔄', 'FP OB L2/Low',   'red'),
+      ('fp_l1',          '💳', 'FP OB Campaign',  'green'),
     ] %}
     {% for ctype, icon, label, color in camp_data %}
     <a href="{{ url_for('admin_leads', campaign_type=ctype) }}"

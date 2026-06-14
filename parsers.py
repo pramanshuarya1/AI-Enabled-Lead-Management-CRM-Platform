@@ -118,28 +118,9 @@ def detect_lead_type_atpitch(lead_name: str) -> str:
 
 def detect_fp_level(course_level: str, lead_name: str = "", default_level: str = "fp_l1") -> str:
     """
-    FP levels:
-    - FP_L1 / FP_L1_High  → fp_l1
-    - FP_L2 / FP_L1_Low   → fp_l2
+    FP levels: always returns fp_l1 as campaigns are merged.
     """
-    if not course_level:
-        course_level = ""
-    cl = course_level.strip().upper()
-    ln = (lead_name or "").upper()
-
-    # Prioritize any HIGH markers first (e.g. fp_l1_high, fp_l2_high, L1_HIGH)
-    if "HIGH" in cl or "L1_HIGH" in cl or "L1 HIGH" in cl or "HIGH" in ln or "L1_HIGH" in ln or "L1 HIGH" in ln:
-        return "fp_l1"
-
-    # Then check for Low/L2 markers (e.g. fpl1_low, fp_l2_low, L1_LOW, L2)
-    if "L2" in cl or "LOW" in cl or "L1_LOW" in cl or "L1 LOW" in cl or "L2" in ln or "LOW" in ln or "L1_LOW" in ln or "L1 LOW" in ln:
-        return "fp_l2"
-        
-    if "L1" in cl or "L1" in ln:
-        return "fp_l1"
-
-    # Default FP goes to selected level
-    return default_level
+    return "fp_l1"
 
 
 def parse_date(val):
@@ -245,8 +226,8 @@ def parse_atpitch(
             detected_bootcamp = detect_bootcamp_from_row(row)
             bootcamp_title = (
                 get_flexible(row, 'bootcamptitle', 'bootcamp_title', 'bootcamp')
-                or admin_bootcamp
                 or detected_bootcamp
+                or admin_bootcamp
                 or default_bootcamp_name
             )
 
@@ -323,8 +304,8 @@ def parse_upsell(
             detected_bootcamp = detect_bootcamp_from_row(row)
             bootcamp_title = (
                 get_flexible(row, 'bootcamptitle', 'bootcamp_title', 'bootcamp', 'bx')
-                or admin_bootcamp
                 or detected_bootcamp
+                or admin_bootcamp
                 or 'Upsell'
             )
 
@@ -391,8 +372,7 @@ def parse_failed_pending(
             phone = clean_phone(get_flexible(row, 'phone', 'contact_no', 'phone_number', 'mobile'))
             name = get_flexible(row, 'name', 'customer_name', 'lead_name')
             
-            selected_campaign = extra.get('campaign_type') if extra else None
-            default_bootcamp_name = 'FP L2' if selected_campaign == 'fp_l2' else 'FP L1'
+            default_bootcamp_name = 'FP OB'
 
             detected_bootcamp = detect_bootcamp_from_row(row)
             bootcamp_title = (
@@ -402,15 +382,15 @@ def parse_failed_pending(
                     'asset_name', 'opportunity_event_name', 'masterclass_name',
                 )
                 or get_flexible(row, 'opportunity_name', 'opportunity_event')
-                or admin_bootcamp
                 or detected_bootcamp
+                or admin_bootcamp
                 or default_bootcamp_name
             )
 
             # Course level & FP tier
             course_level = get_flexible(row, 'courselevel', 'course_level', 'lead_type')
             opp_name     = get_flexible(row, 'opportunity_name')
-            fp_level = detect_fp_level(course_level, opp_name or name, default_level=selected_campaign or 'fp_l1')
+            fp_level = detect_fp_level(course_level, opp_name or name, default_level='fp_l1')
 
             if not phone:
                 errors.append({'row': i, 'error': 'Missing phone', 'data': dict(row)})
@@ -432,7 +412,7 @@ def parse_failed_pending(
             lead = {
                 'unique_key':          unique_key,
                 'campaign_type':       fp_level,
-                'lead_type':           course_level or opp_name or ('FP_L1' if fp_level == 'fp_l1' else 'FP_L2'),
+                'lead_type':           course_level or opp_name or 'FP OB',
                 'lead_name':           name,
                 'contact_no':          phone,
                 'bootcamp_title':      bootcamp_title,
@@ -552,17 +532,15 @@ def parse_leadsquared(
                 elif selected_campaign == 'upsell':
                     default_bootcamp_name = 'Upsell'
                 elif selected_campaign == 'fp_l1':
-                    default_bootcamp_name = 'FP L1'
-                elif selected_campaign == 'fp_l2':
-                    default_bootcamp_name = 'FP L2'
+                    default_bootcamp_name = 'FP OB'
 
             detected_bootcamp = detect_bootcamp_from_row(row)
             bootcamp_title = (
                 get_flexible(row, 'bootcamptitle', 'bootcamp_title', 'bootcamp')
                 or asset_name
                 or opp_name
-                or admin_bootcamp
                 or detected_bootcamp
+                or admin_bootcamp
                 or default_bootcamp_name
             )
 
@@ -758,9 +736,7 @@ def parse_simple(
                 elif selected_campaign == 'upsell':
                     default_bootcamp_name = 'Upsell'
                 elif selected_campaign == 'fp_l1':
-                    default_bootcamp_name = 'FP L1'
-                elif selected_campaign == 'fp_l2':
-                    default_bootcamp_name = 'FP L2'
+                    default_bootcamp_name = 'FP OB'
 
             bootcamp_title = (
                 bootcamp_from_row
@@ -812,7 +788,6 @@ PARSERS = {
     'atpitch_others': parse_atpitch,
     'upsell':         parse_upsell,
     'fp_l1':          parse_failed_pending,
-    'fp_l2':          parse_failed_pending,
     'leadsquared':    parse_leadsquared,
     'simple':         parse_simple,          # ← two-column: phone + "name | bootcamp"
 }

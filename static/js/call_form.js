@@ -6,6 +6,15 @@
 
 document.addEventListener('DOMContentLoaded', function () {
 
+  // Set minimum date picker value to today
+  const fuDateInput = document.getElementById('follow_up_date');
+  if (fuDateInput) {
+    const today = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+    fuDateInput.min = todayStr;
+  }
+
   // ── Connection Toggle ──────────────────────────────────────
   const connYes = document.getElementById('conn_yes');
   const connNo  = document.getElementById('conn_no');
@@ -124,10 +133,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (status === 'follow_up') {
           const fuDate = document.getElementById('follow_up_date')?.value;
+          const fuTime = document.getElementById('follow_up_time')?.value;
           if (!fuDate) {
             e.preventDefault();
             showFormError('Please set a follow-up date');
             return;
+          }
+          
+          const today = new Date();
+          const pad = n => String(n).padStart(2, '0');
+          const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+          
+          if (fuDate < todayStr) {
+            e.preventDefault();
+            showFormError('Follow-up date cannot be in the past');
+            return;
+          }
+          
+          if (fuDate === todayStr && fuTime) {
+            const currentTimeStr = `${pad(today.getHours())}:${pad(today.getMinutes())}`;
+            if (fuTime < currentTimeStr) {
+              e.preventDefault();
+              showFormError('Follow-up time cannot be in the past');
+              return;
+            }
           }
         }
       }

@@ -38,8 +38,7 @@
             <option value="upsell">⬆️ Upsell OB</option>
           </optgroup>
           <optgroup label="Failed Pending">
-            <option value="fp_l1">💳 FP OB — L1 / L1 High</option>
-            <option value="fp_l2">🔄 FP OB — L2 / L1 Low</option>
+            <option value="fp_l1">💳 FP OB Campaign</option>
           </optgroup>
         </select>
         <div class="form-hint" id="campaignHint"></div>
@@ -87,9 +86,9 @@
             <div class="form-hint">Applied to every lead in this file</div>
           </div>
           <div class="form-group">
-            <label class="form-label">🔴 Priority</label>
+            <label class="form-label">🔴 Level</label>
             <select name="extra_priority" id="extra_priority" class="form-control">
-              <option value="">— Select Priority —</option>
+              <option value="">— Select Level —</option>
               <option value="P1">🔴 P1 — High</option>
               <option value="P2">🟡 P2 — Medium</option>
               <option value="P3">⚪ P3 — Low</option>
@@ -243,18 +242,17 @@
 // ── Campaign type change: show/hide extra fields + hints ───────────────────
 const campaignHints = {
   leadsquared:    '🔗 Auto-categorizes into FP / Upsell / Atpitch by reading the Opportunity Name column',
-  simple:         '📋 Two-column format: phone + "name | Bootcamp". Fill in Date & Priority below.',
+  simple:         '📋 Two-column format: phone + "name | Bootcamp". Fill in Date & Level below.',
   atpitch_sia:    'Super Investing Arena leads — campaign auto-detected from Lead Name',
   atpitch_sta:    'Stock Trading Arena leads — campaign auto-detected from Lead Name',
   atpitch_others: 'All other Atpitch leads',
   upsell:         'Upsell outbound campaign leads',
-  fp_l1:          'Failed Pending — Level 1 / High ticket leads',
-  fp_l2:          'Failed Pending — Level 2 / Low ticket leads',
+  fp_l1:          'Failed Pending — FP OB Campaign leads',
 };
 const formatMap = {
   leadsquared: 'leadsquared', simple: 'simple',
   atpitch_sia: 'atpitch', atpitch_sta: 'atpitch', atpitch_others: 'atpitch',
-  upsell: 'upsell', fp_l1: 'fp', fp_l2: 'fp',
+  upsell: 'upsell', fp_l1: 'fp',
 };
 
 document.getElementById('campaign_type').addEventListener('change', function() {
@@ -273,11 +271,32 @@ document.getElementById('campaign_type').addEventListener('change', function() {
     dateInput.required = false;
   }
 
+  // Update levels dynamically
+  const prioritySelect = document.getElementById('extra_priority');
+  if (prioritySelect) {
+    if (val === 'fp_l1') {
+      prioritySelect.innerHTML = `
+        <option value="">— Select Level —</option>
+        <option value="L1">🔴 L1 — High</option>
+        <option value="L2">🟡 L2 — Low</option>
+      `;
+    } else {
+      prioritySelect.innerHTML = `
+        <option value="">— Select Level —</option>
+        <option value="P1">🔴 P1 — High</option>
+        <option value="P2">🟡 P2 — Medium</option>
+        <option value="P3">⚪ P3 — Low</option>
+      `;
+    }
+  }
+
   // Show format guide panel
   document.querySelectorAll('.format-info').forEach(el => el.classList.add('hidden'));
   const fmt = formatMap[val];
   if (fmt) document.getElementById('fmt-' + fmt)?.classList.remove('hidden');
   else document.getElementById('fmt-default')?.classList.remove('hidden');
+  
+  updateAgentDropdown();
   checkReady();
 });
 
@@ -294,6 +313,86 @@ document.getElementById('campaign_type').addEventListener('change', function() {
   }
 })();
 
+// Agent teams mapping
+const agentTeams = {
+  'harsh': 'atpitch_sia_sta',
+  'krishna': 'atpitch_sia_sta',
+  'deepak': 'atpitch_sia_sta',
+  'manmohan': 'atpitch_sia_sta',
+  'kamaljeet': 'atpitch_sia_sta',
+  'akansha': 'fp',
+  'kulbir': 'fp',
+  'abhisekh': 'fp',
+  'faiz ansari': 'fp',
+  'anchal': 'upsell_others',
+  'muskan': 'upsell_others',
+  'khusbu': 'upsell_others',
+  'sumaitari': 'upsell_others',
+  'sumaitri': 'upsell_others',
+  'ameen': 'upsell_others',
+  'pankaj': 'upsell_others',
+  'jyoti': 'upsell_others',
+};
+
+function getAgentTeam(agentName) {
+  const cleanName = agentName.trim().toLowerCase();
+  if (agentTeams[cleanName]) return agentTeams[cleanName];
+  const firstName = cleanName.split(' ')[0];
+  if (agentTeams[firstName]) return agentTeams[firstName];
+  for (let key in agentTeams) {
+    if (cleanName.includes(key) || key.includes(cleanName)) {
+      return agentTeams[key];
+    }
+  }
+  return null;
+}
+
+function updateAgentDropdown() {
+  const campaignVal = document.getElementById('campaign_type').value;
+  const placeholder = document.getElementById('multiselectPlaceholder');
+  
+  let targetTeam = null;
+  if (campaignVal === 'atpitch_sia' || campaignVal === 'atpitch_sta') {
+    targetTeam = 'atpitch_sia_sta';
+  } else if (campaignVal === 'fp_l1') {
+    targetTeam = 'fp';
+  } else if (campaignVal === 'upsell' || campaignVal === 'atpitch_others') {
+    targetTeam = 'upsell_others';
+  }
+
+  const agentOptions = document.querySelectorAll('.agent-option');
+  agentOptions.forEach(option => {
+    const checkbox = option.querySelector('.agent-checkbox');
+    const team = getAgentTeam(checkbox.value);
+    
+    if (!targetTeam || team === targetTeam) {
+      option.style.display = 'flex';
+    } else {
+      option.style.display = 'none';
+      checkbox.checked = false;
+    }
+  });
+
+  const checked = [];
+  document.querySelectorAll('.agent-checkbox:checked').forEach(cb => {
+    checked.push(cb.value);
+  });
+
+  if (checked.length > 0) {
+    placeholder.textContent = `🎧 ${checked.join(', ')}`;
+  } else {
+    if (campaignVal === 'atpitch_sia' || campaignVal === 'atpitch_sta') {
+      placeholder.textContent = '— Auto-Assign to SIA/STA Team —';
+    } else if (campaignVal === 'fp_l1') {
+      placeholder.textContent = '— Auto-Assign to FP Team —';
+    } else if (campaignVal === 'upsell' || campaignVal === 'atpitch_others') {
+      placeholder.textContent = '— Auto-Assign to Upsell/Others Team —';
+    } else {
+      placeholder.textContent = '— Auto-Assign to All Agents —';
+    }
+  }
+}
+
 // Custom multiselect dropdown functions
 function toggleUploadDropdown(event) {
   event.stopPropagation();
@@ -302,17 +401,7 @@ function toggleUploadDropdown(event) {
 }
 
 function handleUploadAgentCheckboxChange() {
-  const checkboxes = document.querySelectorAll('.agent-checkbox');
-  const placeholder = document.getElementById('multiselectPlaceholder');
-  const checked = [];
-  checkboxes.forEach(cb => {
-    if (cb.checked) checked.push(cb.value);
-  });
-  if (checked.length > 0) {
-    placeholder.textContent = `🎧 ${checked.join(', ')}`;
-  } else {
-    placeholder.textContent = '— Auto-Assign to All Agents —';
-  }
+  updateAgentDropdown();
 }
 
 // Close dropdown when clicking outside

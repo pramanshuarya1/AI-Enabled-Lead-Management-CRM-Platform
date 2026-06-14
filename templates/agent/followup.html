@@ -32,7 +32,7 @@
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <span class="badge {{ lead.final_status | status_class }}">{{ lead.final_status }}</span>
-    {% if lead.priority %}<span class="{{ lead.priority | priority_class }}">{{ lead.priority }}</span>{% endif %}
+    {% if lead.priority %}<span class="{{ lead.priority | priority_class }}">Level: {{ lead.priority | display_level(lead.campaign_type) }}</span>{% endif %}
     <span class="badge badge-neutral">{{ lead.total_attempts or 0 }} calls</span>
   </div>
 </div>

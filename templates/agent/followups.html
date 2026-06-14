@@ -23,21 +23,20 @@
       <input type="text" name="search" placeholder="Search by name or phone..." value="{{ search }}">
     </div>
 
-    <select name="campaign_type" class="form-control" style="width:auto;padding:8px 32px 8px 12px;">
+    <select name="campaign_type" class="form-control" onchange="this.form.submit()" style="width:auto;padding:8px 32px 8px 12px;">
       <option value="">All Campaigns</option>
-      <option value="atpitch_sia"    {% if campaign_filter=='atpitch_sia' %}selected{% endif %}>📈 Atpitch SIA</option>
-      <option value="atpitch_sta"    {% if campaign_filter=='atpitch_sta' %}selected{% endif %}>📊 Atpitch STA</option>
-      <option value="atpitch_others" {% if campaign_filter=='atpitch_others' %}selected{% endif %}>🎯 Atpitch Others</option>
-      <option value="upsell"         {% if campaign_filter=='upsell' %}selected{% endif %}>⬆️ Upsell OB</option>
-      <option value="fp_l1"          {% if campaign_filter=='fp_l1' %}selected{% endif %}>💳 FP OB L1/High</option>
-      <option value="fp_l2"          {% if campaign_filter=='fp_l2' %}selected{% endif %}>🔄 FP OB L2/Low</option>
+      {% for val, label in campaigns_list %}
+        <option value="{{ val }}" {% if campaign_filter==val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
     </select>
 
-    <select name="priority" class="form-control" style="width:auto;padding:8px 32px 8px 12px;">
-      <option value="">All Priorities</option>
+    <select name="priority" class="form-control" onchange="this.form.submit()" style="width:auto;padding:8px 32px 8px 12px;">
+      <option value="">All Levels</option>
       <option value="P1" {% if priority_filter=='P1' %}selected{% endif %}>🔴 P1 — High</option>
       <option value="P2" {% if priority_filter=='P2' %}selected{% endif %}>🟡 P2 — Medium</option>
       <option value="P3" {% if priority_filter=='P3' %}selected{% endif %}>⚪ P3 — Low</option>
+      <option value="L1" {% if priority_filter=='L1' %}selected{% endif %}>🔴 L1 — High (FP)</option>
+      <option value="L2" {% if priority_filter=='L2' %}selected{% endif %}>🟡 L2 — Low (FP)</option>
     </select>
 
     <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
@@ -56,7 +55,7 @@
         <th>Lead Name</th>
         <th>Phone</th>
         <th>Campaign</th>
-        <th>Priority</th>
+        <th>Level</th>
         <th>Scheduled Follow-up</th>
         <th>Last Called</th>
         <th>Actions</th>
@@ -76,7 +75,7 @@
           <span class="badge badge-purple">{{ lead.campaign_type | campaign_label }}</span>
         </td>
         <td>
-          <span class="{{ lead.priority | priority_class }}">{{ lead.priority or '—' }}</span>
+          <span class="{{ lead.priority | priority_class }}">{{ lead.priority | display_level(lead.campaign_type) }}</span>
         </td>
         <td style="white-space: nowrap;">
           {% if lead.follow_up_date %}
