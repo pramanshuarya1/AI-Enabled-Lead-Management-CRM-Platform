@@ -197,24 +197,61 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // ── Disposition auto-suggestions ──────────────────────────
+  // ── Disposition dynamic options based on status ───────────
   const dispositionField = document.getElementById('disposition');
-  if (callStatus && dispositionField && dispositionField.tagName === 'INPUT') {
-    const dispositionSuggestions = {
-      follow_up:       ['Call back tomorrow', 'Will decide after discussing', 'Needs time to think', 'Husband/Wife to discuss'],
-      converted:       ['Paid on call', 'Token paid, balance pending', 'Full payment done'],
-      already_enrolled: ['Already enrolled earlier', 'Enrolled for same Bx', 'Double enrollment found'],
-      need_more_detail: ['Wants more info on curriculum', 'Asked for demo first', 'Needs ROI details'],
-      not_interested:  ['Not interested at all', 'Budget constraint', 'Already doing similar course'],
-      discarded:       ['Unreachable multiple times', 'Wrong number', 'Requested not to call'],
+  if (callStatus && dispositionField) {
+    const dispositionOptionsMap = {
+      follow_up: [
+        { value: 'Hot', text: 'Hot' },
+        { value: 'Warm', text: 'Warm' },
+        { value: 'Cold', text: 'Cold' }
+      ],
+      converted: [
+        { value: 'paid on call', text: 'paid on call' },
+        { value: 'paid by follow up', text: 'paid by follow up' }
+      ],
+      already_enrolled: [
+        { value: 'Enrolled', text: 'Enrolled' }
+      ],
+      need_more_detail: [
+        { value: 'Need to watch MC again', text: 'Need to watch MC again' }
+      ],
+      discarded: [
+        { value: "Didn't get value", text: "Didn't get value" },
+        { value: 'No funds', text: 'No funds' },
+        { value: "Don't want RN", text: "Don't want RN" }
+      ]
     };
 
-    callStatus.addEventListener('change', function () {
-      const suggestions = dispositionSuggestions[this.value] || [];
-      if (suggestions.length > 0 && !dispositionField.value) {
-        dispositionField.placeholder = suggestions[0];
+    function updateDispositionOptions() {
+      const statusVal = callStatus.value;
+      const options = dispositionOptionsMap[statusVal] || [
+        { value: 'Hot', text: 'Hot' },
+        { value: 'Warm', text: 'Warm' },
+        { value: 'Cold', text: 'Cold' }
+      ];
+
+      const currentVal = dispositionField.value;
+      dispositionField.innerHTML = '';
+
+      options.forEach(opt => {
+        const optionEl = document.createElement('option');
+        optionEl.value = opt.value;
+        optionEl.textContent = opt.text;
+        dispositionField.appendChild(optionEl);
+      });
+
+      // Restore value if valid, otherwise select first
+      if (options.some(opt => opt.value === currentVal)) {
+        dispositionField.value = currentVal;
+      } else if (options.length > 0) {
+        dispositionField.value = options[0].value;
       }
-    });
+    }
+
+    callStatus.addEventListener('change', updateDispositionOptions);
+    // Initial populate
+    updateDispositionOptions();
   }
 
 });
