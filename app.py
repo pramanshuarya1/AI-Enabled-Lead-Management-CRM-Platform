@@ -1189,7 +1189,7 @@ def agent_dashboard():
             # Total
             q_tot = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct)
             if not is_admin:
-                q_tot = q_tot.ilike('agent_name', f'%{agent_name}%').or_(f"final_status.not.in.(\"Follow Up\",\"Call Back Later\"),contacted_by.is.null,contacted_by.eq.{agent_name}")
+                q_tot = q_tot.ilike('agent_name', f'%{agent_name}%').or_(f"final_status.eq.Pending,contacted_by.is.null,contacted_by.eq.{agent_name}")
             queries[f'{ct}_total'] = q_tot
 
             # Pending
@@ -1274,7 +1274,7 @@ def agent_campaign(campaign_type):
         query = supabase_admin.table('leads').select('*').eq('campaign_type', campaign_type)
         if not is_admin:
             query = query.ilike('agent_name', f'%{agent_name}%')
-            query = query.or_(f"final_status.not.in.(\"Follow Up\",\"Call Back Later\"),contacted_by.is.null,contacted_by.eq.{agent_name}")
+            query = query.or_(f"final_status.eq.Pending,contacted_by.is.null,contacted_by.eq.{agent_name}")
         if status_filter:
             if status_filter == 'Follow Up':
                 query = query.in_('final_status', ['Follow Up', 'Call Back Later'])
@@ -1704,7 +1704,7 @@ def agent_leads_list():
             query = supabase_admin.table('leads').select('*')
             if not is_admin:
                 query = query.ilike('agent_name', f'%{agent_name}%')
-                query = query.or_(f"final_status.not.in.(\"Follow Up\",\"Call Back Later\"),contacted_by.is.null,contacted_by.eq.{agent_name}")
+                query = query.or_(f"final_status.eq.Pending,contacted_by.is.null,contacted_by.eq.{agent_name}")
 
         if status_filter:
             if status_filter == 'Follow Up':
