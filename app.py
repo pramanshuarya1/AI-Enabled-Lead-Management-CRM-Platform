@@ -158,6 +158,15 @@ def get_agent_allowed_campaigns(agent_name: str) -> list:
     if 'ankit dahiya' in name_clean:
         return ['atpitch_sia', 'atpitch_sta', 'atpitch_others', 'upsell', 'fp_l1']
         
+    try:
+        res = supabase_admin.table('profiles').select('campaigns').eq('name', agent_name).execute()
+        if res.data and res.data[0].get('campaigns'):
+            camps_str = res.data[0]['campaigns']
+            camps = [c.strip() for c in camps_str.split(',') if c.strip()]
+            return camps
+    except Exception as e:
+        app.logger.error(f"Error fetching agent campaigns from profile: {e}")
+        
     allowed = []
     if agent_matches_team(agent_name, SIA_STA_TEAM):
         allowed.extend(['atpitch_sia', 'atpitch_sta'])
@@ -995,6 +1004,8 @@ def admin_create_agent():
     name = request.form.get('name', '').strip()
     email = request.form.get('email', '').strip()
     password = request.form.get('password', '').strip()
+    campaigns_list = request.form.getlist('campaigns')
+    campaigns_str = ','.join(campaigns_list)
 
     if not all([name, email, password]):
         flash('All fields are required.', 'error')
@@ -1016,6 +1027,7 @@ def admin_create_agent():
             'email': email,
             'role': 'agent',
             'password': password,
+            'campaigns': campaigns_str,
         }).execute()
 
         flash(f'Agent {name} created successfully! They can log in at /login with their email and password.', 'success')
@@ -1037,6 +1049,21 @@ def admin_toggle_agent(agent_id):
         flash(f'Agent {"activated" if is_active else "deactivated"} successfully.', 'success')
     except Exception as e:
         flash(f'Error: {e}', 'error')
+    return redirect(url_for('admin_agents'))
+
+
+@app.route('/admin/agents/<agent_id>/update-campaigns', methods=['POST'])
+@admin_required
+def admin_update_agent_campaigns(agent_id):
+    campaigns_list = request.form.getlist('campaigns')
+    campaigns_str = ','.join(campaigns_list)
+    try:
+        supabase_admin.table('profiles') \
+            .update({'campaigns': campaigns_str}) \
+            .eq('id', agent_id).execute()
+        flash('Agent campaigns updated successfully.', 'success')
+    except Exception as e:
+        flash(f'Error updating campaigns: {e}', 'error')
     return redirect(url_for('admin_agents'))
 
 

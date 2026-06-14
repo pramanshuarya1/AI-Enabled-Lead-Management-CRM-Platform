@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     role TEXT NOT NULL CHECK (role IN ('admin', 'agent')),
     is_active BOOLEAN DEFAULT TRUE,
     password TEXT,
+    campaigns TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

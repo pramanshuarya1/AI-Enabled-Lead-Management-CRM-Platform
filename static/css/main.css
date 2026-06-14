@@ -398,7 +398,7 @@ h4 { font-size: 0.9rem; font-weight: 600; }
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow-x: auto;
 }
 .table-header {
   display: flex;
