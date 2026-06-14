@@ -152,6 +152,12 @@ def agent_matches_team(db_name: str, team_set: set) -> bool:
     return False
 
 def get_agent_allowed_campaigns(agent_name: str) -> list:
+    if not agent_name:
+        return []
+    name_clean = agent_name.strip().lower()
+    if 'ankit dahiya' in name_clean:
+        return ['atpitch_sia', 'atpitch_sta', 'atpitch_others', 'upsell', 'fp_l1']
+        
     allowed = []
     if agent_matches_team(agent_name, SIA_STA_TEAM):
         allowed.extend(['atpitch_sia', 'atpitch_sta'])
