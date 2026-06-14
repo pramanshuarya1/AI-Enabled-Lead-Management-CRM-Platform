@@ -78,18 +78,11 @@
       <td><span class="badge badge-purple">{{ lead.campaign_type | campaign_label }}</span></td>
       <td>{{ lead.priority | display_level(lead.campaign_type) }}</td>
       <td>
-        <form method="POST" action="{{ url_for('admin_leads_assign') }}" style="display:inline-block;margin:0;">
-          <input type="hidden" name="lead_ids" value="{{ lead.id }}">
-          <select name="agent_names" onchange="this.form.submit()" class="form-control" style="font-size:0.78rem;padding:4px 8px;width:auto;min-width:110px;border-color:var(--border-color);border-radius:6px;background-color:var(--bg-cream);">
-            <option value="">— Unassigned —</option>
-            {% for agent in agents %}
-              {% set display_n = agent.name | display_agent_name %}
-              <option value="{{ agent.name }}" {% if lead.agent_name and agent.name in lead.agent_name %}selected{% endif %}>
-                🎧 {{ display_n }}
-              </option>
-            {% endfor %}
-          </select>
-        </form>
+        {% if lead.contacted_by %}
+          <span class="agent-tag">🎧 {{ lead.contacted_by }}</span>
+        {% else %}
+          <span style="color:var(--text-muted);">—</span>
+        {% endif %}
       </td>
       <td class="muted">{{ lead.updated_at | format_dt }}</td>
       <td><a href="{{ url_for('agent_lead_detail', lead_id=lead.id) }}" class="btn btn-ghost btn-sm">View →</a></td>
@@ -124,18 +117,11 @@
       <td><span class="badge badge-purple">{{ lead.campaign_type | campaign_label }}</span></td>
       <td>{{ lead.priority | display_level(lead.campaign_type) }}</td>
       <td>
-        <form method="POST" action="{{ url_for('admin_leads_assign') }}" style="display:inline-block;margin:0;">
-          <input type="hidden" name="lead_ids" value="{{ lead.id }}">
-          <select name="agent_names" onchange="this.form.submit()" class="form-control" style="font-size:0.78rem;padding:4px 8px;width:auto;min-width:110px;border-color:var(--border-color);border-radius:6px;background-color:var(--bg-cream);">
-            <option value="">— Unassigned —</option>
-            {% for agent in agents %}
-              {% set display_n = agent.name | display_agent_name %}
-              <option value="{{ agent.name }}" {% if lead.agent_name and agent.name in lead.agent_name %}selected{% endif %}>
-                🎧 {{ display_n }}
-              </option>
-            {% endfor %}
-          </select>
-        </form>
+        {% if lead.contacted_by %}
+          <span class="agent-tag">🎧 {{ lead.contacted_by }}</span>
+        {% else %}
+          <span style="color:var(--text-muted);">—</span>
+        {% endif %}
       </td>
       <td>
         {% if lead.last_call_date %}
@@ -174,18 +160,11 @@
       <td><span class="badge badge-purple">{{ lead.campaign_type | campaign_label }}</span></td>
       <td>{{ lead.priority | display_level(lead.campaign_type) }}</td>
       <td>
-        <form method="POST" action="{{ url_for('admin_leads_assign') }}" style="display:inline-block;margin:0;">
-          <input type="hidden" name="lead_ids" value="{{ lead.id }}">
-          <select name="agent_names" onchange="this.form.submit()" class="form-control" style="font-size:0.78rem;padding:4px 8px;width:auto;min-width:110px;border-color:var(--border-color);border-radius:6px;background-color:var(--bg-cream);">
-            <option value="">— Unassigned —</option>
-            {% for agent in agents %}
-              {% set display_n = agent.name | display_agent_name %}
-              <option value="{{ agent.name }}" {% if lead.agent_name and agent.name in lead.agent_name %}selected{% endif %}>
-                🎧 {{ display_n }}
-              </option>
-            {% endfor %}
-          </select>
-        </form>
+        {% if lead.contacted_by %}
+          <span class="agent-tag">🎧 {{ lead.contacted_by }}</span>
+        {% else %}
+          <span style="color:var(--text-muted);">—</span>
+        {% endif %}
       </td>
       <td style="color:var(--warning);font-weight:600;white-space:nowrap;">
         <div>📅 {{ lead.follow_up_date }}</div>
@@ -212,7 +191,7 @@
   {% if detail.today_call_logs %}
   <table>
     <thead><tr>
-      <th>Lead Name</th><th>Phone</th><th>Bootcamp</th><th>Call Status</th><th>Called At</th>
+      <th>Lead Name</th><th>Phone</th><th>Bootcamp</th><th>Agent</th><th>Call Status</th><th>Called At</th>
     </tr></thead>
     <tbody>
     {% for call in detail.today_call_logs %}
@@ -221,6 +200,13 @@
       <td style="font-weight:600;">{{ lead.lead_name or '—' }}</td>
       <td class="phone-num">{{ lead.contact_no or '—' }}</td>
       <td style="font-size:0.8rem;color:var(--text-muted);max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ lead.bootcamp_title or '—' }}</td>
+      <td>
+        {% if call.agent_name %}
+          <span class="agent-tag">🎧 {{ call.agent_name }}</span>
+        {% else %}
+          <span style="color:var(--text-muted);">—</span>
+        {% endif %}
+      </td>
       <td>
         {% set cs = call.call_status or '' %}
         {% if cs == 'converted' %}<span class="badge badge-green">💰 Converted</span>

@@ -3,7 +3,7 @@
 {% block page_title %}Lead Detail{% endblock %}
 
 {% block top_actions %}
-  {% if lead.final_status in ['Converted', 'Already Enrolled'] %}
+  {% if lead.final_status in ['Converted', 'Already Enrolled'] and user.role != 'admin' %}
     <button class="btn btn-secondary btn-sm" style="opacity:0.5; cursor:not-allowed;" disabled>🚫 Contact Blocked</button>
   {% else %}
     <a href="{{ url_for('agent_call_log', lead_id=lead.id) }}" class="btn btn-primary">
@@ -39,11 +39,22 @@
   </div>
   <div class="lead-hero-actions">
     {% if user.role == 'admin' %}
+      <form method="POST" action="{{ url_for('admin_change_lead_status', lead_id=lead.id) }}" style="display:inline-block; margin-right:8px;">
+        <select name="status" onchange="this.form.submit()" class="btn btn-secondary" style="background:var(--bg-card); color:var(--text-main); border:1px solid var(--border-color); font-weight:600; padding:8px 12px; cursor:pointer;">
+          <option value="" disabled>Change Status...</option>
+          <option value="Pending" {% if lead.final_status == 'Pending' %}selected{% endif %}>🔓 Open (Pending)</option>
+          <option value="Follow Up" {% if lead.final_status == 'Follow Up' %}selected{% endif %}>🔁 Follow Up</option>
+          <option value="Converted" {% if lead.final_status == 'Converted' %}selected{% endif %}>💰 Converted</option>
+          <option value="Already Enrolled" {% if lead.final_status == 'Already Enrolled' %}selected{% endif %}>📋 Already Enrolled</option>
+          <option value="Not Interested" {% if lead.final_status == 'Not Interested' %}selected{% endif %}>❌ Not Interested</option>
+          <option value="Discarded" {% if lead.final_status == 'Discarded' %}selected{% endif %}>🗑️ Discarded</option>
+        </select>
+      </form>
       <form method="POST" action="{{ url_for('admin_leads_delete', lead_id=lead.id) }}" onsubmit="return confirm('Are you sure you want to delete this lead?');" style="display:inline;margin-right:8px;">
         <button type="submit" class="btn btn-secondary" style="background:var(--danger);color:white;border-color:var(--danger);">🗑️ Delete Lead</button>
       </form>
     {% endif %}
-    {% if lead.final_status in ['Converted', 'Already Enrolled'] %}
+    {% if lead.final_status in ['Converted', 'Already Enrolled'] and user.role != 'admin' %}
       <button class="btn btn-secondary" style="opacity:0.5; cursor:not-allowed;" disabled>🚫 Blocked ({{ lead.final_status }})</button>
     {% else %}
       <a href="{{ url_for('agent_call_log', lead_id=lead.id) }}" class="btn btn-primary">
@@ -184,7 +195,7 @@
   <div>
     <div class="section-header">
       <span class="section-title">Call History ({{ calls | length }} attempt{{ 's' if calls | length != 1 }})</span>
-      {% if lead.final_status not in ['Converted', 'Already Enrolled'] %}
+      {% if lead.final_status not in ['Converted', 'Already Enrolled'] or user.role == 'admin' %}
       <a href="{{ url_for('agent_call_log', lead_id=lead.id) }}" class="btn btn-primary btn-sm">
         + Log Call #{{ (lead.total_attempts or 0) + 1 }}
       </a>

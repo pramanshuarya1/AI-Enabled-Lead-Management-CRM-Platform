@@ -260,7 +260,7 @@ def admin_dashboard():
         # Fetch latest 50 converted leads
         converted_leads_resp = supabase_admin.table('leads') \
             .select('id,lead_name,contact_no,bootcamp_title,campaign_type,'
-                    'priority,agent_name,final_status,last_call_date,updated_at') \
+                    'priority,agent_name,final_status,last_call_date,updated_at,contacted_by') \
             .eq('final_status', 'Converted') \
             .order('updated_at', desc=True) \
             .limit(50) \
@@ -270,7 +270,7 @@ def admin_dashboard():
         # Fetch up to 1000 follow-up leads (to search for overdue status)
         follow_up_all_resp = supabase_admin.table('leads') \
             .select('id,lead_name,contact_no,bootcamp_title,campaign_type,'
-                    'priority,agent_name,final_status,last_call_date,updated_at') \
+                    'priority,agent_name,final_status,last_call_date,updated_at,contacted_by') \
             .eq('final_status', 'Follow Up') \
             .limit(1000) \
             .execute()
@@ -357,7 +357,7 @@ def admin_dashboard():
     # ── Query 3: today's call detail (for drilldown) ──────────────────────
     try:
         tcl = supabase_admin.table('call_attempts') \
-            .select('id,called_at,call_status,leads(lead_name,contact_no,bootcamp_title,campaign_type)') \
+            .select('id,called_at,call_status,agent_name,leads(lead_name,contact_no,bootcamp_title,campaign_type)') \
             .gte('called_at', today) \
             .order('called_at', desc=True).limit(50).execute()
         detail['today_call_logs'] = tcl.data or []
@@ -783,6 +783,25 @@ def admin_leads_delete(lead_id):
     return redirect(url_for('admin_leads'))
 
 
+@app.route('/admin/leads/<lead_id>/change-status', methods=['POST'])
+@admin_required
+def admin_change_lead_status(lead_id):
+    new_status = request.form.get('status', '').strip()
+    if not new_status:
+        flash('Status is required.', 'error')
+        return redirect(request.referrer or url_for('agent_lead_detail', lead_id=lead_id))
+    try:
+        supabase_admin.table('leads').update({
+            'final_status': new_status,
+            'updated_at': datetime.now(timezone.utc).isoformat()
+        }).eq('id', lead_id).execute()
+        flash(f'Lead status updated to {new_status} successfully.', 'success')
+    except Exception as e:
+        flash(f'Failed to update lead status: {e}', 'error')
+    
+    return redirect(request.referrer or url_for('agent_lead_detail', lead_id=lead_id))
+
+
 @app.route('/admin/leads/bulk-delete', methods=['POST'])
 @admin_required
 def admin_leads_bulk_delete():
@@ -1141,7 +1160,7 @@ def agent_call_log(lead_id):
         return redirect(url_for('agent_dashboard'))
 
     # Check if lead is already converted or enrolled
-    if lead.get('final_status') in ['Converted', 'Already Enrolled']:
+    if lead.get('final_status') in ['Converted', 'Already Enrolled'] and user['role'] != 'admin':
         flash('This lead is already converted or enrolled and cannot be contacted further.', 'error')
         return redirect(url_for('agent_lead_detail', lead_id=lead_id))
 
