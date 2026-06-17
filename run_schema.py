@@ -174,7 +174,7 @@ BEGIN
             WHEN NEW.call_status = 'not_interested'   THEN 'Not Interested'
             WHEN NEW.call_status = 'discarded'        THEN 'Discarded'
             WHEN NEW.call_status = 'follow_up'        THEN 'Follow Up'
-            WHEN NEW.connected = FALSE                THEN 'Pending'
+            WHEN NEW.call_status = 'call_back_later'   THEN 'Call Back Later'
             ELSE final_status
         END,
         updated_at = NOW()

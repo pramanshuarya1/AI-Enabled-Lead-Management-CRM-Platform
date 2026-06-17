@@ -116,7 +116,7 @@ CREATE TABLE IF NOT EXISTS public.call_attempts (
     
     -- If NOT connected:
     not_connected_reason TEXT CHECK (not_connected_reason IN (
-        'not_connected', 'internet_issue', 'call_failure', 'switched_off', 'busy', 'ringing_no_answer'
+        'not_connected', 'internet_issue', 'call_failure', 'switched_off', 'busy', 'ringing_no_answer', 'cut_the_call'
     )),
     
     -- If connected:
@@ -196,7 +196,6 @@ BEGIN
             WHEN NEW.call_status = 'discarded' THEN 'Discarded'
             WHEN NEW.call_status = 'follow_up' THEN 'Follow Up'
             WHEN NEW.call_status = 'call_back_later' THEN 'Call Back Later'
-            WHEN NEW.connected = FALSE THEN 'Pending'
             ELSE final_status
         END,
         updated_at = NOW()

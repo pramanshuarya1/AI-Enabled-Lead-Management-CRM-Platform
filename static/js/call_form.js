@@ -204,10 +204,12 @@ document.addEventListener('DOMContentLoaded', function () {
       follow_up: [
         { value: 'Hot', text: 'Hot' },
         { value: 'Warm', text: 'Warm' },
-        { value: 'Cold', text: 'Cold' }
+        { value: 'Cold', text: 'Cold' },
+        { value: 'Call Dropped', text: 'Call Dropped' }
       ],
       call_back_later: [
-        { value: 'Call Back Later', text: 'Call Back Later' }
+        { value: 'Call Back Later', text: 'Call Back Later' },
+        { value: 'Call Dropped', text: 'Call Dropped' }
       ],
       converted: [
         { value: 'paid on call', text: 'paid on call' },
@@ -217,12 +219,14 @@ document.addEventListener('DOMContentLoaded', function () {
         { value: 'Enrolled', text: 'Enrolled' }
       ],
       need_more_detail: [
-        { value: 'Need to watch MC again', text: 'Need to watch MC again' }
+        { value: 'Need to watch MC again', text: 'Need to watch MC again' },
+        { value: 'Call Dropped', text: 'Call Dropped' }
       ],
       discarded: [
         { value: "Didn't get value", text: "Didn't get value" },
         { value: 'No funds', text: 'No funds' },
-        { value: "Don't want RN", text: "Don't want RN" }
+        { value: "Don't want RN", text: "Don't want RN" },
+        { value: 'Call Dropped', text: 'Call Dropped' }
       ]
     };
 
