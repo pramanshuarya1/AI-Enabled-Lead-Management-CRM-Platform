@@ -227,6 +227,9 @@ document.addEventListener('DOMContentLoaded', function () {
         { value: 'No funds', text: 'No funds' },
         { value: "Don't want RN", text: "Don't want RN" },
         { value: 'Call Dropped', text: 'Call Dropped' }
+      ],
+      cut_the_call: [
+        { value: 'Call Dropped', text: 'Call Dropped' }
       ]
     };
 

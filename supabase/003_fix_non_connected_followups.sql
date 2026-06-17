@@ -29,3 +29,13 @@ DROP TRIGGER IF EXISTS trigger_update_lead_on_call ON public.call_attempts;
 CREATE TRIGGER trigger_update_lead_on_call
 AFTER INSERT OR UPDATE ON public.call_attempts
 FOR EACH ROW EXECUTE FUNCTION public.update_lead_on_call();
+
+-- Update CHECK constraint for call_status to allow 'call_back_later' and 'cut_the_call'
+ALTER TABLE public.call_attempts
+DROP CONSTRAINT IF EXISTS call_attempts_call_status_check;
+
+ALTER TABLE public.call_attempts
+ADD CONSTRAINT call_attempts_call_status_check
+CHECK (call_status IN (
+    'follow_up', 'converted', 'already_enrolled', 'need_more_detail', 'not_interested', 'discarded', 'call_back_later', 'cut_the_call'
+));

@@ -223,6 +223,7 @@
                 {% elif call.call_status == 'need_more_detail' %}ℹ️ Need More Detail
                 {% elif call.call_status == 'not_interested' %}❌ Not Interested
                 {% elif call.call_status == 'discarded' %}🗑 Discarded
+                {% elif call.call_status == 'cut_the_call' %}🛑 Cut the Call
                 {% else %}{{ call.call_status }}{% endif %}
               </span>
             {% endif %}

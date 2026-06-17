@@ -178,7 +178,7 @@
             {% endif %}
             {% if call.call_status %}
             <span class="badge badge-neutral" style="font-size:0.7rem;">
-              {% if call.call_status == 'follow_up' %}🔁{% elif call.call_status == 'call_back_later' %}📞{% elif call.call_status == 'converted' %}💰{% endif %}
+              {% if call.call_status == 'follow_up' %}🔁{% elif call.call_status == 'call_back_later' %}📞{% elif call.call_status == 'converted' %}💰{% elif call.call_status == 'cut_the_call' %}🛑{% endif %}
               {{ call.call_status | replace('_', ' ') | title }}
             </span>
             {% endif %}
