@@ -366,7 +366,7 @@ def admin_dashboard():
                 attempts_resp = supabase_admin.table('call_attempts')\
                     .select('lead_id,follow_up_date,follow_up_time')\
                     .in_('lead_id', chunk)\
-                    .in_('call_status', ['follow_up', 'call_back_later'])\
+                    .in_('call_status', ['follow_up', 'call_back_later', 'need_more_detail'])\
                     .order('called_at', desc=True)\
                     .execute()
                 attempts_data.extend(attempts_resp.data or [])
@@ -1416,7 +1416,7 @@ def agent_call_log(lead_id):
                 call_data['disposition'] = request.form.get('disposition', '')
                 call_data['comments'] = request.form.get('comments', '')
 
-                if call_status in ['follow_up', 'call_back_later']:
+                if call_status in ['follow_up', 'call_back_later', 'need_more_detail']:
                     fu_date_str = request.form.get('follow_up_date', '').strip()
                     fu_time_str = request.form.get('follow_up_time', '').strip()
 
@@ -1548,7 +1548,7 @@ def agent_followup(lead_id):
 
         # Find last conversion
         conversion = next((c for c in reversed(calls) if c.get('call_status') == 'converted'), None)
-        follow_ups = [c for c in calls if c.get('call_status') in ['follow_up', 'call_back_later']]
+        follow_ups = [c for c in calls if c.get('call_status') in ['follow_up', 'call_back_later', 'need_more_detail']]
     except Exception as e:
         flash(f'Error: {e}', 'error')
         return redirect(url_for('agent_dashboard'))
@@ -1623,7 +1623,7 @@ def agent_followups():
                 attempts_resp = supabase_admin.table('call_attempts')\
                     .select('lead_id,follow_up_date,follow_up_time')\
                     .in_('lead_id', lead_ids)\
-                    .in_('call_status', ['follow_up', 'call_back_later'])\
+                    .in_('call_status', ['follow_up', 'call_back_later', 'need_more_detail'])\
                     .order('called_at', desc=True)\
                     .execute()
 

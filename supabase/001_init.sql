@@ -196,6 +196,7 @@ BEGIN
             WHEN NEW.call_status = 'discarded' THEN 'Discarded'
             WHEN NEW.call_status = 'follow_up' THEN 'Follow Up'
             WHEN NEW.call_status = 'call_back_later' THEN 'Call Back Later'
+            WHEN NEW.call_status = 'need_more_detail' THEN 'Follow Up'
             ELSE final_status
         END,
         updated_at = NOW()

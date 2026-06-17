@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (callStatus) {
     callStatus.addEventListener('change', function () {
       const val = this.value;
-      toggleSection('followUpSection',  val === 'follow_up' || val === 'call_back_later');
+      toggleSection('followUpSection',  val === 'follow_up' || val === 'call_back_later' || val === 'need_more_detail');
       toggleSection('convertedSection', val === 'converted');
     });
   }
