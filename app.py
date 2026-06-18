@@ -84,7 +84,7 @@ def inject_agent_stats():
     try:
         calls_resp = supabase_admin.table('call_attempts') \
             .select('lead_id, connected') \
-            .eq('agent_name', agent_name) \
+            .ilike('agent_name', agent_name) \
             .execute()
         calls = calls_resp.data or []
         
@@ -104,7 +104,7 @@ def inject_agent_stats():
     try:
         leads_resp = supabase_admin.table('leads') \
             .select('final_status') \
-            .eq('contacted_by', agent_name) \
+            .ilike('contacted_by', agent_name) \
             .execute()
         leads = leads_resp.data or []
         
@@ -155,7 +155,7 @@ def get_agent_allowed_campaigns(agent_name: str) -> list:
         return ['atpitch_sia', 'atpitch_sta', 'atpitch_others', 'upsell', 'fp_l1']
         
     try:
-        res = supabase_admin.table('profiles').select('campaigns').eq('name', agent_name).execute()
+        res = supabase_admin.table('profiles').select('campaigns').ilike('name', agent_name).execute()
         if res.data and res.data[0].get('campaigns'):
             camps_str = res.data[0]['campaigns']
             camps = [c.strip() for c in camps_str.split(',') if c.strip()]
@@ -1189,7 +1189,7 @@ def agent_dashboard():
             # Total
             q_tot = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct)
             if not is_admin:
-                q_tot = q_tot.ilike('agent_name', f'%{agent_name}%').or_(f"final_status.eq.Pending,contacted_by.is.null,contacted_by.eq.{agent_name}")
+                q_tot = q_tot.ilike('agent_name', f'%{agent_name}%').or_(f"final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{agent_name}")
             queries[f'{ct}_total'] = q_tot
 
             # Pending
@@ -1201,7 +1201,7 @@ def agent_dashboard():
             # Follow Up
             q_fu = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct).in_('final_status', ['Follow Up', 'Call Back Later'])
             if not is_admin:
-                q_fu = q_fu.ilike('agent_name', f'%{agent_name}%').or_(f"contacted_by.is.null,contacted_by.eq.{agent_name}")
+                q_fu = q_fu.ilike('agent_name', f'%{agent_name}%').or_(f"contacted_by.is.null,contacted_by.ilike.{agent_name}")
             queries[f'{ct}_fu'] = q_fu
 
         def get_count_val(q):
@@ -1274,7 +1274,7 @@ def agent_campaign(campaign_type):
         query = supabase_admin.table('leads').select('*').eq('campaign_type', campaign_type)
         if not is_admin:
             query = query.ilike('agent_name', f'%{agent_name}%')
-            query = query.or_(f"final_status.eq.Pending,contacted_by.is.null,contacted_by.eq.{agent_name}")
+            query = query.or_(f"final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{agent_name}")
         if status_filter:
             if status_filter == 'Follow Up':
                 query = query.in_('final_status', ['Follow Up', 'Call Back Later'])
@@ -1324,10 +1324,10 @@ def agent_lead_detail(lead_id):
                 flash('Access denied.', 'error')
                 return redirect(url_for('agent_dashboard'))
             assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
-            if agent_name not in assigned_agents:
+            if agent_name.lower() not in [a.lower() for a in assigned_agents]:
                 flash('Access denied.', 'error')
                 return redirect(url_for('agent_dashboard'))
-            if lead.get('final_status') in ['Follow Up', 'Call Back Later'] and lead.get('contacted_by') and lead.get('contacted_by') != agent_name:
+            if lead.get('final_status') in ['Follow Up', 'Call Back Later'] and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
                 flash('Access denied. This follow-up is owned by another agent.', 'error')
                 return redirect(url_for('agent_dashboard'))
 
@@ -1365,10 +1365,10 @@ def agent_call_log(lead_id):
                 flash('Access denied.', 'error')
                 return redirect(url_for('agent_dashboard'))
             assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
-            if agent_name not in assigned_agents:
+            if agent_name.lower() not in [a.lower() for a in assigned_agents]:
                 flash('Access denied.', 'error')
                 return redirect(url_for('agent_dashboard'))
-            if lead.get('final_status') in ['Follow Up', 'Call Back Later'] and lead.get('contacted_by') and lead.get('contacted_by') != agent_name:
+            if lead.get('final_status') in ['Follow Up', 'Call Back Later'] and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
                 flash('Access denied. This follow-up is owned by another agent.', 'error')
                 return redirect(url_for('agent_dashboard'))
 
@@ -1536,10 +1536,10 @@ def agent_followup(lead_id):
                 flash('Access denied.', 'error')
                 return redirect(url_for('agent_dashboard'))
             assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
-            if agent_name not in assigned_agents:
+            if agent_name.lower() not in [a.lower() for a in assigned_agents]:
                 flash('Access denied.', 'error')
                 return redirect(url_for('agent_dashboard'))
-            if lead.get('final_status') in ['Follow Up', 'Call Back Later'] and lead.get('contacted_by') and lead.get('contacted_by') != agent_name:
+            if lead.get('final_status') in ['Follow Up', 'Call Back Later'] and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
                 flash('Access denied. This follow-up is owned by another agent.', 'error')
                 return redirect(url_for('agent_dashboard'))
 
@@ -1678,7 +1678,7 @@ def agent_leads_list():
             # We filter by call attempts
             call_query = supabase_admin.table('call_attempts').select('lead_id, connected')
             if not is_admin:
-                call_query = call_query.eq('agent_name', agent_name)
+                call_query = call_query.ilike('agent_name', agent_name)
             if connected_filter:
                 call_query = call_query.eq('connected', True)
             
@@ -1704,7 +1704,7 @@ def agent_leads_list():
             query = supabase_admin.table('leads').select('*')
             if not is_admin:
                 query = query.ilike('agent_name', f'%{agent_name}%')
-                query = query.or_(f"final_status.eq.Pending,contacted_by.is.null,contacted_by.eq.{agent_name}")
+                query = query.or_(f"final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{agent_name}")
 
         if status_filter:
             if status_filter == 'Follow Up':
@@ -1758,9 +1758,9 @@ def api_update_lead_status(lead_id):
                 return jsonify({'error': 'Access denied'}), 403
             
             assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
-            if agent_name not in assigned_agents:
+            if agent_name.lower() not in [a.lower() for a in assigned_agents]:
                 return jsonify({'error': 'Access denied'}), 403
-            if lead.get('final_status') in ['Follow Up', 'Call Back Later'] and lead.get('contacted_by') and lead.get('contacted_by') != agent_name:
+            if lead.get('final_status') in ['Follow Up', 'Call Back Later'] and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
                 return jsonify({'error': 'Access denied. This follow-up is owned by another agent.'}), 403
 
         supabase_admin.table('leads').update({
