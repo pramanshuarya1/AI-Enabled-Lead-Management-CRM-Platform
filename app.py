@@ -1715,9 +1715,12 @@ def agent_leads_list():
                 return render_template('agent/leads_list.html', user=user, leads=[], page=page, status_filter=status_filter, dialed_filter=dialed_filter, connected_filter=connected_filter, pending_filter=pending_filter)
             
             query = supabase_admin.table('leads').select('*').in_('id', lead_ids)
+            if not is_admin:
+                query = query.in_('campaign_type', allowed)
         else:
             query = supabase_admin.table('leads').select('*')
             if not is_admin:
+                query = query.in_('campaign_type', allowed)
                 query = query.or_(f"and(agent_name.ilike.%{agent_name}%,or(final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\"")
 
         if status_filter:
@@ -1811,8 +1814,7 @@ def api_search_leads():
                 query = query.eq('campaign_type', campaign)
             else:
                 query = query.in_('campaign_type', allowed)
-            
-            query = query.ilike('agent_name', f'%{user["name"]}%')
+            query = query.or_(f"and(agent_name.ilike.%{user['name']}%,or(final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{user['name']})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\"")
         else:
             if campaign:
                 query = query.eq('campaign_type', campaign)
