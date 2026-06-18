@@ -1640,6 +1640,19 @@ def agent_followups():
                 lead['follow_up_date'] = info.get('date') or lead.get('fp_date')
                 lead['follow_up_time'] = info.get('time') or lead.get('fp_time')
 
+            # Sort leads by scheduled follow-up date and time in ascending order (oldest/past dates first)
+            def get_followup_sort_key(l):
+                d = l.get('follow_up_date')
+                t = l.get('follow_up_time')
+                if not d:
+                    return (1, "")
+                t_str = t if t else "00:00"
+                if len(t_str) == 8:
+                    t_str = t_str[:5]
+                return (0, f"{d} {t_str}")
+
+            leads = sorted(leads, key=get_followup_sort_key)
+
     except Exception as e:
         leads = []
         flash(f'Error fetching follow-ups: {e}', 'error')
