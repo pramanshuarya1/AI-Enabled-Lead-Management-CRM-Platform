@@ -154,14 +154,14 @@
   </table>
 
   <!-- Pagination -->
-  {% if page > 1 or leads | length == 30 %}
+  {% if page > 1 or leads | length == 20 %}
   <div class="pagination">
     {% if page > 1 %}
       <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, page=page-1, status=status_filter, priority=priority_filter, search=search) }}"
          class="page-btn">‹ Prev</a>
     {% endif %}
     <span class="page-btn active">{{ page }}</span>
-    {% if leads | length == 30 %}
+    {% if leads | length == 20 %}
       <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, page=page+1, status=status_filter, priority=priority_filter, search=search) }}"
          class="page-btn">Next ›</a>
     {% endif %}
