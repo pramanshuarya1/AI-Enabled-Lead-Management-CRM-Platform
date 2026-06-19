@@ -84,7 +84,7 @@
           <span style="color:var(--text-muted);">—</span>
         {% endif %}
       </td>
-      <td class="muted">{{ lead.updated_at | format_dt }}</td>
+      <td class="muted">{{ lead.last_call_date | format_dt if lead.last_call_date else '—' }}</td>
       <td><a href="{{ url_for('agent_lead_detail', lead_id=lead.id) }}" class="btn btn-ghost btn-sm">View →</a></td>
     </tr>
     {% endfor %}

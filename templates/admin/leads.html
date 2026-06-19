@@ -116,7 +116,7 @@
           <span class="badge {{ lead.final_status | status_class }}">{{ lead.final_status }}</span>
         </td>
         <td style="text-align:center;">{{ lead.total_attempts or 0 }}</td>
-        <td class="muted">{{ lead.updated_at | format_dt }}</td>
+        <td class="muted">{{ lead.last_call_date | format_dt if lead.last_call_date else '—' }}</td>
         <td>
           <div style="display:flex;gap:6px;align-items:center;">
             <a href="{{ url_for('agent_lead_detail', lead_id=lead.id) }}" class="btn btn-ghost btn-sm">View →</a>
