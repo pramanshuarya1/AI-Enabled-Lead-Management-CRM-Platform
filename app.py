@@ -1252,20 +1252,14 @@ def agent_dashboard():
         for ct in _ctypes:
             # Total
             q_tot = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct)
-            if not is_admin:
-                q_tot = q_tot.or_(f"and(agent_name.ilike.%{agent_name}%,or(final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\"")
             queries[f'{ct}_total'] = q_tot
 
             # Pending
             q_pend = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct).eq('final_status', 'Pending')
-            if not is_admin:
-                q_pend = q_pend.ilike('agent_name', f'%{agent_name}%')
             queries[f'{ct}_pending'] = q_pend
 
             # Follow Up
             q_fu = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct).in_('final_status', FOLLOW_UP_STATUSES)
-            if not is_admin:
-                q_fu = q_fu.ilike('agent_name', f'%{agent_name}%').or_(f"contacted_by.is.null,contacted_by.ilike.{agent_name}")
             queries[f'{ct}_fu'] = q_fu
 
         def get_count_val(q):
