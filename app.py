@@ -803,7 +803,7 @@ def admin_leads():
     status = request.args.get('status', '')
     search = request.args.get('search', '').strip()
     page = int(request.args.get('page', 1))
-    per_page = 50
+    per_page = 30
 
     try:
         query = supabase_admin.table('leads').select('*')
