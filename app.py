@@ -1580,6 +1580,11 @@ def agent_followups():
     agent_name = user['name']
     is_admin = user['role'] == 'admin'
 
+    page = int(request.args.get('page', 1))
+    if page < 1:
+        page = 1
+    per_page = 30
+
     search = request.args.get('search', '').strip()
     campaign_filter = request.args.get('campaign_type', '')
     priority_filter = request.args.get('priority', '')
@@ -1624,7 +1629,7 @@ def agent_followups():
             if search:
                 query = query.or_(f'lead_name.ilike.%{search}%,contact_no.ilike.%{search}%,bootcamp_title.ilike.%{search}%')
 
-            leads_resp = query.order('last_call_date', desc=True).limit(100).execute()
+            leads_resp = query.order('last_call_date', desc=True).limit(1000).execute()
             leads = leads_resp.data or []
 
             # Enrich with scheduled follow-up date/time from call_attempts
@@ -1679,6 +1684,10 @@ def agent_followups():
                     return (0, f"{d} {t_str}")
                 leads = sorted(leads, key=get_followup_sort_key)
 
+            # Slice for pagination
+            offset = (page - 1) * per_page
+            leads = leads[offset : offset + per_page]
+
     except Exception as e:
         leads = []
         flash(f'Error fetching follow-ups: {e}', 'error')
@@ -1694,7 +1703,8 @@ def agent_followups():
                            campaign_filter=campaign_filter,
                            priority_filter=priority_filter,
                            campaigns_list=campaigns_list,
-                           sort_order=sort_order)
+                           sort_order=sort_order,
+                           page=page)
 
 
 @app.route('/agent/leads')

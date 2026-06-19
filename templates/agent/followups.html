@@ -113,6 +113,22 @@
       {% endfor %}
     </tbody>
   </table>
+
+  <!-- Pagination -->
+  {% if page > 1 or leads | length == 30 %}
+  <div class="pagination">
+    {% if page > 1 %}
+      <a href="{{ url_for('agent_followups', page=page-1, sort=sort_order, search=search, campaign_type=campaign_filter, priority=priority_filter) }}"
+         class="page-btn">‹ Prev</a>
+    {% endif %}
+    <span class="page-btn active">{{ page }}</span>
+    {% if leads | length == 30 %}
+      <a href="{{ url_for('agent_followups', page=page+1, sort=sort_order, search=search, campaign_type=campaign_filter, priority=priority_filter) }}"
+         class="page-btn">Next ›</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
   {% else %}
   <div class="empty-state" style="margin-top:24px;">
     <span class="empty-icon">📭</span>
