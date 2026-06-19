@@ -15,8 +15,8 @@
   </div>
 </div>
 
-<!-- Stats Grid -->
-<div class="stats-grid" style="margin-bottom:0;">
+<!-- Stats Grid: Leads & Status -->
+<div class="stats-grid" style="margin-bottom:16px;">
 
   <!-- Total Leads — links to leads list -->
   <a href="{{ url_for('admin_leads') }}" class="stat-card purple" style="text-decoration:none;color:inherit;display:block;">
@@ -39,6 +39,17 @@
     <div class="stat-label">Follow Ups <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
   </div>
 
+  <!-- Overdue Follow-ups (>24h) — toggles detail -->
+  <div class="stat-card red stat-clickable" onclick="togglePanel('overduePanel')" style="cursor:pointer;" id="cardOverdue">
+    <div class="stat-icon red">⚠️</div>
+    <div class="stat-value">{{ stats.overdue_followups | default(0) }}</div>
+    <div class="stat-label">Overdue (>24h) <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
+  </div>
+</div>
+
+<!-- Stats Grid: Performance & Revenue -->
+<div class="stats-grid" style="margin-bottom:28px;">
+
   <!-- Calls Today — toggles detail -->
   <div class="stat-card blue stat-clickable" onclick="togglePanel('callsTodayPanel')" style="cursor:pointer;" id="cardCallsToday">
     <div class="stat-icon blue">📞</div>
@@ -46,11 +57,25 @@
     <div class="stat-label">Calls Today <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
   </div>
 
-  <!-- Overdue Follow-ups (>24h) — toggles detail -->
-  <div class="stat-card red stat-clickable" onclick="togglePanel('overduePanel')" style="cursor:pointer;" id="cardOverdue">
-    <div class="stat-icon red">⚠️</div>
-    <div class="stat-value">{{ stats.overdue_followups | default(0) }}</div>
-    <div class="stat-label">Overdue (>24h) <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
+  <!-- Attempted Calls -->
+  <div class="stat-card blue">
+    <div class="stat-icon blue">☎️</div>
+    <div class="stat-value">{{ stats.attempted_calls | default(0) }}</div>
+    <div class="stat-label">Attempted Calls</div>
+  </div>
+
+  <!-- Connected Calls -->
+  <div class="stat-card green">
+    <div class="stat-icon green">📞</div>
+    <div class="stat-value">{{ stats.connected_calls | default(0) }}</div>
+    <div class="stat-label">Connected Calls</div>
+  </div>
+
+  <!-- Revenue -->
+  <div class="stat-card orange">
+    <div class="stat-icon orange">💰</div>
+    <div class="stat-value">{{ stats.revenue | inr }}</div>
+    <div class="stat-label">Revenue (Sales)</div>
   </div>
 </div>
 
@@ -98,6 +123,15 @@
     {% endfor %}
     </tbody>
   </table>
+  <div class="pagination" style="margin: 10px 18px; justify-content: flex-end; display: flex; gap: 8px;">
+    {% if page_conv > 1 %}
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv-1, page_fu=page_fu, page_calls=page_calls, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='convertedPanel') }}" class="page-btn">‹ Prev</a>
+    {% endif %}
+    <span class="page-btn active">{{ page_conv }}</span>
+    {% if has_next_conv %}
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv+1, page_fu=page_fu, page_calls=page_calls, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='convertedPanel') }}" class="page-btn">Next ›</a>
+    {% endif %}
+  </div>
   {% else %}
   <div class="empty-state" style="padding:24px;"><span class="empty-icon">📭</span><p>No converted leads yet</p></div>
   {% endif %}
@@ -141,6 +175,15 @@
     {% endfor %}
     </tbody>
   </table>
+  <div class="pagination" style="margin: 10px 18px; justify-content: flex-end; display: flex; gap: 8px;">
+    {% if page_fu > 1 %}
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu-1, page_calls=page_calls, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='followUpPanel') }}" class="page-btn">‹ Prev</a>
+    {% endif %}
+    <span class="page-btn active">{{ page_fu }}</span>
+    {% if has_next_fu %}
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu+1, page_calls=page_calls, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='followUpPanel') }}" class="page-btn">Next ›</a>
+    {% endif %}
+  </div>
   {% else %}
   <div class="empty-state" style="padding:24px;"><span class="empty-icon">📭</span><p>No follow-up leads today</p></div>
   {% endif %}
@@ -186,6 +229,15 @@
     {% endfor %}
     </tbody>
   </table>
+  <div class="pagination" style="margin: 10px 18px; justify-content: flex-end; display: flex; gap: 8px;">
+    {% if page_overdue > 1 %}
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu, page_calls=page_calls, page_overdue=page_overdue-1, sort_conv=sort_conv, active_panel='overduePanel') }}" class="page-btn">‹ Prev</a>
+    {% endif %}
+    <span class="page-btn active">{{ page_overdue }}</span>
+    {% if has_next_overdue %}
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu, page_calls=page_calls, page_overdue=page_overdue+1, sort_conv=sort_conv, active_panel='overduePanel') }}" class="page-btn">Next ›</a>
+    {% endif %}
+  </div>
   {% else %}
   <div class="empty-state" style="padding:24px;"><span class="empty-icon">🎉</span><p>No overdue follow-up leads!</p></div>
   {% endif %}
@@ -228,6 +280,15 @@
     {% endfor %}
     </tbody>
   </table>
+  <div class="pagination" style="margin: 10px 18px; justify-content: flex-end; display: flex; gap: 8px;">
+    {% if page_calls > 1 %}
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu, page_calls=page_calls-1, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='callsTodayPanel') }}" class="page-btn">‹ Prev</a>
+    {% endif %}
+    <span class="page-btn active">{{ page_calls }}</span>
+    {% if has_next_calls %}
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu, page_calls=page_calls+1, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='callsTodayPanel') }}" class="page-btn">Next ›</a>
+    {% endif %}
+  </div>
   {% else %}
   <div class="empty-state" style="padding:24px;"><span class="empty-icon">📭</span><p>No calls logged today</p></div>
   {% endif %}
@@ -331,7 +392,14 @@ function togglePanel(id) {
 
 document.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.has('sort_conv')) {
+  const activePanel = urlParams.get('active_panel');
+  if (activePanel) {
+    const el = document.getElementById(activePanel);
+    if (el) {
+      el.style.display = 'block';
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  } else if (urlParams.has('sort_conv')) {
     const el = document.getElementById('convertedPanel');
     if (el) {
       el.style.display = 'block';
