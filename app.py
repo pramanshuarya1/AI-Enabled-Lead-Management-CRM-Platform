@@ -1642,22 +1642,41 @@ def agent_followups():
                 lead['follow_up_date'] = info.get('date') or lead.get('fp_date')
                 lead['follow_up_time'] = info.get('time') or lead.get('fp_time')
 
-            # Sort leads by scheduled follow-up date and time in ascending order (oldest/past dates first)
-            def get_followup_sort_key(l):
-                d = l.get('follow_up_date')
-                t = l.get('follow_up_time')
-                if not d:
-                    return (1, "")
-                t_str = t if t else "00:00"
-                if len(t_str) == 8:
-                    t_str = t_str[:5]
-                return (0, f"{d} {t_str}")
+            sort_order = request.args.get('sort', 'asc')
+            if sort_order not in ['asc', 'desc']:
+                sort_order = 'asc'
 
-            leads = sorted(leads, key=get_followup_sort_key)
+            # Sort leads by scheduled follow-up date and time
+            if sort_order == 'desc':
+                def get_followup_sort_key(l):
+                    d = l.get('follow_up_date')
+                    t = l.get('follow_up_time')
+                    if not d:
+                        return (0, "")
+                    t_str = t if t else "00:00"
+                    if len(t_str) == 8:
+                        t_str = t_str[:5]
+                    return (1, f"{d} {t_str}")
+                leads = sorted(leads, key=get_followup_sort_key, reverse=True)
+            else:
+                def get_followup_sort_key(l):
+                    d = l.get('follow_up_date')
+                    t = l.get('follow_up_time')
+                    if not d:
+                        return (1, "")
+                    t_str = t if t else "00:00"
+                    if len(t_str) == 8:
+                        t_str = t_str[:5]
+                    return (0, f"{d} {t_str}")
+                leads = sorted(leads, key=get_followup_sort_key)
 
     except Exception as e:
         leads = []
         flash(f'Error fetching follow-ups: {e}', 'error')
+
+    # Default sort_order if not set or caught in exception
+    if 'sort_order' not in locals():
+        sort_order = 'asc'
 
     return render_template('agent/followups.html',
                            user=user,
@@ -1665,7 +1684,8 @@ def agent_followups():
                            search=search,
                            campaign_filter=campaign_filter,
                            priority_filter=priority_filter,
-                           campaigns_list=campaigns_list)
+                           campaigns_list=campaigns_list,
+                           sort_order=sort_order)
 
 
 @app.route('/agent/leads')
