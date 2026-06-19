@@ -288,6 +288,9 @@ def logout():
 def admin_dashboard():
     user = get_current_user()
     today = datetime.now(timezone.utc).date().isoformat()
+    sort_conv = request.args.get('sort_conv', 'desc')
+    if sort_conv not in ['asc', 'desc']:
+        sort_conv = 'desc'
 
     # ── Defaults ─────────────────────────────────────────────────────────
     stats  = {'total_leads': 0, 'converted': 0, 'follow_up': 0,
@@ -335,13 +338,17 @@ def admin_dashboard():
 
         # ── Query 2: Retrieve detail lists ────────────────────────────────────
         # Fetch latest 50 converted leads
-        converted_leads_resp = supabase_admin.table('leads') \
+        query_conv = supabase_admin.table('leads') \
             .select('id,lead_name,contact_no,bootcamp_title,campaign_type,'
                     'priority,agent_name,final_status,last_call_date,updated_at,contacted_by') \
-            .eq('final_status', 'Converted') \
-            .order('updated_at', desc=True) \
-            .limit(50) \
-            .execute()
+            .eq('final_status', 'Converted')
+        
+        if sort_conv == 'asc':
+            query_conv = query_conv.order('last_call_date', desc=False, nullsfirst=True)
+        else:
+            query_conv = query_conv.order('last_call_date', desc=True, nullsfirst=False)
+
+        converted_leads_resp = query_conv.limit(50).execute()
         converted_leads = converted_leads_resp.data or []
 
         # Fetch up to 1000 follow-up leads (to search for overdue status)
@@ -461,7 +468,8 @@ def admin_dashboard():
                            stats=stats,
                            detail=detail,
                            recent_uploads=recent_uploads,
-                           agents=agents)
+                           agents=agents,
+                           sort_conv=sort_conv)
 
 
 @app.route('/admin/dashboard/export_csv')

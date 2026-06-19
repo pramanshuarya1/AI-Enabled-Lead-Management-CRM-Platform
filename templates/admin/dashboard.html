@@ -65,7 +65,15 @@
   {% if detail.converted_leads %}
   <table>
     <thead><tr>
-      <th>Lead Name / Bootcamp</th><th>Phone</th><th>Campaign</th><th>Level</th><th>Agent</th><th>Converted On</th><th></th>
+      <th>Lead Name / Bootcamp</th><th>Phone</th><th>Campaign</th><th>Level</th><th>Agent</th>
+      <th>
+        <a href="{{ url_for('admin_dashboard', sort_conv='desc' if sort_conv == 'asc' else 'asc') }}" 
+           style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+          Converted On
+          <span>{% if sort_conv == 'desc' %}▼{% else %}▲{% endif %}</span>
+        </a>
+      </th>
+      <th></th>
     </tr></thead>
     <tbody>
     {% for lead in detail.converted_leads %}
@@ -320,6 +328,17 @@ function togglePanel(id) {
     }
   });
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('sort_conv')) {
+    const el = document.getElementById('convertedPanel');
+    if (el) {
+      el.style.display = 'block';
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+});
 </script>
 <style>
 .drilldown-panel {
