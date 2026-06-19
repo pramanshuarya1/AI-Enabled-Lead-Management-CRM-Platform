@@ -62,8 +62,15 @@ graph TD
 * **Granular Assignment:** Admins can assign individual agents to one or multiple campaigns from the agents dashboard at any time.
 * **Fallback Mappings:** If no campaigns are explicitly assigned, it defaults to the team name based mappings (`SIA_STA_TEAM`, `FP_TEAM`, `UPSELL_TEAM`) to ensure seamless backward compatibility.
 
-### ⏳ Redefined Performance Metrics
+### ⏳ Performance Metrics & Revenue Tracking
 * **Logical Pending Stats:** The agent "Pending" statistic is calculated mathematically as `Pending = Dialed Leads - Connected Leads` (dialed leads that have not successfully connected).
+* **Call Stats Tracking:** Displays total attempted calls and successful connected calls on the admin dashboard.
+* **Revenue Tracking:** Displays total sales collections across all converted lead payments, formatted in Indian Rupees (INR).
+
+### ⚡ High Performance & Database Pagination
+* **20-Limit Pagination:** Display exactly 20 items per page across all listing views (leads list, campaign lists, follow-up lists) and admin dashboard panels to optimize server and database load.
+* **Parallel Query Worker Thread Pools:** Parallelizes concurrent count queries using thread workers (up to 10 on the admin dashboard and 15 on the agent dashboard) to ensure sub-second page rendering.
+* **Optimized Follow-up Lookups:** Uses streamlined DB queries to fetch all active follow-up schedules in a single request instead of serial chunked lists.
 
 ### 📥 Automated Lead Upload & Parsing
 * **Flexible Parsers:** Supports CSV, TSV, and text uploads.
