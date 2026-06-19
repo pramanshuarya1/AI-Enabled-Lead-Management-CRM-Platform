@@ -27,6 +27,12 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
 
+FOLLOW_UP_STATUSES = [
+    'Follow Up', 'Call Back Later', 'Need More Detail', 
+    'Cut the Call', 'DNP', 'Switched Off', 'Line Busy', 
+    'Internet Issue', 'Call Failure'
+]
+
 
 # ============================================================
 # AUTH HELPERS
@@ -301,7 +307,7 @@ def admin_dashboard():
         queries = {
             'total': supabase_admin.table('leads').select('id', count='exact'),
             'converted': supabase_admin.table('leads').select('id', count='exact').eq('final_status', 'Converted'),
-            'follow_up': supabase_admin.table('leads').select('id', count='exact').in_('final_status', ['Follow Up', 'Call Back Later']),
+            'follow_up': supabase_admin.table('leads').select('id', count='exact').in_('final_status', FOLLOW_UP_STATUSES),
         }
         for ct in campaign_types:
             queries[f'camp_{ct}'] = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct)
@@ -346,7 +352,7 @@ def admin_dashboard():
         follow_up_all_resp = supabase_admin.table('leads') \
             .select('id,lead_name,contact_no,bootcamp_title,campaign_type,'
                     'priority,agent_name,final_status,last_call_date,updated_at,contacted_by') \
-            .in_('final_status', ['Follow Up', 'Call Back Later']) \
+            .in_('final_status', FOLLOW_UP_STATUSES) \
             .limit(1000) \
             .execute()
         follow_up_all = follow_up_all_resp.data or []
@@ -1199,7 +1205,7 @@ def agent_dashboard():
             queries[f'{ct}_pending'] = q_pend
 
             # Follow Up
-            q_fu = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct).in_('final_status', ['Follow Up', 'Call Back Later'])
+            q_fu = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct).in_('final_status', FOLLOW_UP_STATUSES)
             if not is_admin:
                 q_fu = q_fu.ilike('agent_name', f'%{agent_name}%').or_(f"contacted_by.is.null,contacted_by.ilike.{agent_name}")
             queries[f'{ct}_fu'] = q_fu
@@ -1276,7 +1282,7 @@ def agent_campaign(campaign_type):
             query = query.or_(f"and(agent_name.ilike.%{agent_name}%,or(final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\"")
         if status_filter:
             if status_filter == 'Follow Up':
-                query = query.in_('final_status', ['Follow Up', 'Call Back Later'])
+                query = query.in_('final_status', FOLLOW_UP_STATUSES)
             else:
                 query = query.eq('final_status', status_filter)
         if priority_filter:
@@ -1327,7 +1333,7 @@ def agent_lead_detail(lead_id):
                 if agent_name.lower() not in [a.lower() for a in assigned_agents]:
                     flash('Access denied.', 'error')
                     return redirect(url_for('agent_dashboard'))
-            if lead.get('final_status') in ['Follow Up', 'Call Back Later'] and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
+            if lead.get('final_status') in FOLLOW_UP_STATUSES and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
                 flash('Access denied. This follow-up is owned by another agent.', 'error')
                 return redirect(url_for('agent_dashboard'))
 
@@ -1369,7 +1375,7 @@ def agent_call_log(lead_id):
                 if agent_name.lower() not in [a.lower() for a in assigned_agents]:
                     flash('Access denied.', 'error')
                     return redirect(url_for('agent_dashboard'))
-            if lead.get('final_status') in ['Follow Up', 'Call Back Later'] and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
+            if lead.get('final_status') in FOLLOW_UP_STATUSES and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
                 flash('Access denied. This follow-up is owned by another agent.', 'error')
                 return redirect(url_for('agent_dashboard'))
 
@@ -1409,13 +1415,16 @@ def agent_call_log(lead_id):
                 'connected': connected,
             }
 
+            comments = request.form.get('comments', '').strip()
+
             if not connected:
                 call_data['not_connected_reason'] = request.form.get('not_connected_reason', 'not_connected')
+                call_data['comments'] = comments
             else:
                 call_status = request.form.get('call_status', '')
                 call_data['call_status'] = call_status
                 call_data['disposition'] = request.form.get('disposition', '')
-                call_data['comments'] = request.form.get('comments', '')
+                call_data['comments'] = comments
 
                 if call_status in ['follow_up', 'call_back_later', 'need_more_detail']:
                     fu_date_str = request.form.get('follow_up_date', '').strip()
@@ -1541,7 +1550,7 @@ def agent_followup(lead_id):
                 if agent_name.lower() not in [a.lower() for a in assigned_agents]:
                     flash('Access denied.', 'error')
                     return redirect(url_for('agent_dashboard'))
-            if lead.get('final_status') in ['Follow Up', 'Call Back Later'] and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
+            if lead.get('final_status') in FOLLOW_UP_STATUSES and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
                 flash('Access denied. This follow-up is owned by another agent.', 'error')
                 return redirect(url_for('agent_dashboard'))
 
@@ -1595,7 +1604,7 @@ def agent_followups():
             # Short-circuit if non-admin has no allowed campaigns
             leads = []
         else:
-            query = supabase_admin.table('leads').select('*').in_('final_status', ['Follow Up', 'Call Back Later'])
+            query = supabase_admin.table('leads').select('*').in_('final_status', FOLLOW_UP_STATUSES)
             if not is_admin:
                 query = query.ilike('agent_name', f'%{agent_name}%')
                 query = query.or_(f"contacted_by.is.null,contacted_by.eq.{agent_name}")
@@ -1745,7 +1754,7 @@ def agent_leads_list():
 
         if status_filter:
             if status_filter == 'Follow Up':
-                query = query.in_('final_status', ['Follow Up', 'Call Back Later'])
+                query = query.in_('final_status', FOLLOW_UP_STATUSES)
             else:
                 query = query.eq('final_status', status_filter)
         if search:
@@ -1797,7 +1806,7 @@ def api_update_lead_status(lead_id):
             assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
             if agent_name.lower() not in [a.lower() for a in assigned_agents]:
                 return jsonify({'error': 'Access denied'}), 403
-            if lead.get('final_status') in ['Follow Up', 'Call Back Later'] and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
+            if lead.get('final_status') in FOLLOW_UP_STATUSES and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
                 return jsonify({'error': 'Access denied. This follow-up is owned by another agent.'}), 403
 
         supabase_admin.table('leads').update({
@@ -1948,6 +1957,12 @@ def status_class(status):
         'Not Interested': 'badge-danger',
         'Discarded': 'badge-danger',
         'Need More Detail': 'badge-info',
+        'Cut the Call': 'badge-danger',
+        'DNP': 'badge-warning',
+        'Switched Off': 'badge-danger',
+        'Line Busy': 'badge-neutral',
+        'Internet Issue': 'badge-neutral',
+        'Call Failure': 'badge-danger',
     }
     return mapping.get(status, 'badge-neutral')
 
