@@ -165,11 +165,19 @@ FOR EACH ROW EXECUTE FUNCTION public.set_attempt_number();
 """
 CREATE OR REPLACE FUNCTION public.update_lead_on_call()
 RETURNS TRIGGER AS $$
+DECLARE
+    old_status TEXT;
 BEGIN
+    SELECT final_status INTO old_status FROM public.leads WHERE id = NEW.lead_id;
+
     UPDATE public.leads SET
         total_attempts = (SELECT COUNT(*) FROM public.call_attempts WHERE lead_id = NEW.lead_id),
         last_call_date = NEW.called_at,
         final_status = CASE
+            -- If unconnected or cut call AND lead is already in a follow-up status, retain it
+            WHEN (NEW.connected = FALSE OR NEW.call_status = 'cut_the_call') AND old_status IN ('Follow Up', 'Call Back Later', 'Need More Detail') THEN
+                old_status
+
             WHEN NEW.connected = FALSE THEN
                 CASE
                     WHEN NEW.not_connected_reason = 'ringing_no_answer' THEN 'DNP'
