@@ -27,11 +27,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
 
-FOLLOW_UP_STATUSES = [
-    'Follow Up', 'Call Back Later', 'Need More Detail', 
-    'Cut the Call', 'DNP', 'Switched Off', 'Line Busy', 
-    'Internet Issue', 'Call Failure'
-]
+FOLLOW_UP_STATUSES = ['Follow Up', 'Call Back Later', 'Need More Detail']
 
 
 # ============================================================

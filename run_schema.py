@@ -170,6 +170,15 @@ BEGIN
         total_attempts = (SELECT COUNT(*) FROM public.call_attempts WHERE lead_id = NEW.lead_id),
         last_call_date = NEW.called_at,
         final_status = CASE
+            WHEN NEW.connected = FALSE THEN
+                CASE
+                    WHEN NEW.not_connected_reason = 'ringing_no_answer' THEN 'DNP'
+                    WHEN NEW.not_connected_reason = 'switched_off'      THEN 'Switched Off'
+                    WHEN NEW.not_connected_reason = 'busy'              THEN 'Line Busy'
+                    WHEN NEW.not_connected_reason = 'internet_issue'    THEN 'Internet Issue'
+                    WHEN NEW.not_connected_reason = 'call_failure'      THEN 'Call Failure'
+                    ELSE 'Not Connected'
+                END
             WHEN NEW.call_status = 'converted'        THEN 'Converted'
             WHEN NEW.call_status = 'already_enrolled' THEN 'Already Enrolled'
             WHEN NEW.call_status = 'not_interested'   THEN 'Not Interested'
@@ -177,6 +186,7 @@ BEGIN
             WHEN NEW.call_status = 'follow_up'        THEN 'Follow Up'
             WHEN NEW.call_status = 'call_back_later'   THEN 'Call Back Later'
             WHEN NEW.call_status = 'need_more_detail'  THEN 'Need More Detail'
+            WHEN NEW.call_status = 'cut_the_call'     THEN 'Cut the Call'
             ELSE final_status
         END,
         updated_at = NOW()
