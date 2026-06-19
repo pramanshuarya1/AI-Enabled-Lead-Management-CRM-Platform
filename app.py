@@ -1930,7 +1930,7 @@ def mask_phone(value, role='agent', status=None):
         return '—'
     if role == 'admin':
         return value
-    if status in ['Follow Up', 'Call Back Later']:
+    if status in FOLLOW_UP_STATUSES:
         return value
     val_str = str(value).strip()
     if len(val_str) <= 4:
