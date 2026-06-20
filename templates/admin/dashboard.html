@@ -11,9 +11,67 @@
 <div class="page-header">
   <div class="page-header-left">
     <h1>Overview</h1>
-    <p>Welcome back, {{ user.name }} — here's what's happening today</p>
+    <p>Welcome back, {{ user.name }} — here's what's happening</p>
   </div>
 </div>
+
+<!-- Date Filter Bar -->
+<div style="background:var(--bg-card); padding:16px 20px; border-radius:12px; border:1px solid var(--border-color); margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+  <form method="GET" action="{{ url_for('admin_dashboard') }}" id="dateFilterForm" style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin:0; padding:0; border:none; background:none;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:1.2rem;">📅</span>
+      <select name="date_filter" id="dateFilterSelect" class="form-control" style="background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:8px 12px; font-weight:600; cursor:pointer; min-width:180px; font-family:inherit;">
+        <option value="all" {% if date_filter == 'all' %}selected{% endif %}>📅 All Time</option>
+        <option value="today" {% if date_filter == 'today' %}selected{% endif %}>☀️ Today</option>
+        <option value="yesterday" {% if date_filter == 'yesterday' %}selected{% endif %}>🌙 Yesterday</option>
+        <option value="last_7_days" {% if date_filter == 'last_7_days' %}selected{% endif %}>📅 Last 7 Days</option>
+        <option value="custom" {% if date_filter == 'custom' %}selected{% endif %}>✏️ Custom Date...</option>
+      </select>
+    </div>
+    
+    <div id="customDateContainer" style="display:{% if date_filter == 'custom' %}flex{% else %}none{% endif %}; align-items:center; gap:12px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:0.85rem; color:var(--text-muted); font-weight:500;">From</span>
+        <input type="date" name="start_date" value="{{ start_date }}" class="form-control" style="background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:6px 12px; font-family:inherit;">
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:0.85rem; color:var(--text-muted); font-weight:500;">To</span>
+        <input type="date" name="end_date" value="{{ end_date }}" class="form-control" style="background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:6px 12px; font-family:inherit;">
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm" style="padding:8px 16px; border-radius:8px;">Apply</button>
+    </div>
+  </form>
+  
+  <div style="font-size:0.85rem; color:var(--text-muted); font-weight:500;">
+    Active Range: 
+    <strong style="color:var(--text-main);">
+      {% if date_filter == 'all' %}
+        All Time
+      {% elif date_filter == 'today' %}
+        Today
+      {% elif date_filter == 'yesterday' %}
+        Yesterday
+      {% elif date_filter == 'last_7_days' %}
+        Last 7 Days
+      {% elif date_filter == 'custom' %}
+        {{ start_date }} to {{ end_date }}
+      {% endif %}
+    </strong>
+  </div>
+</div>
+
+<script>
+  document.getElementById('dateFilterSelect').addEventListener('change', function() {
+    const val = this.value;
+    const customContainer = document.getElementById('customDateContainer');
+    if (val === 'custom') {
+      customContainer.style.display = 'flex';
+    } else {
+      customContainer.style.display = 'none';
+      document.getElementById('dateFilterForm').submit();
+    }
+  });
+</script>
 
 <!-- Stats Grid: Leads & Status -->
 <div class="stats-grid" style="margin-bottom:16px;">
@@ -22,28 +80,28 @@
   <a href="{{ url_for('admin_leads') }}" class="stat-card purple" style="text-decoration:none;color:inherit;display:block;">
     <div class="stat-icon purple">👥</div>
     <div class="stat-value">{{ stats.total_leads | default(0) }}</div>
-    <div class="stat-label">Total Leads</div>
+    <div class="stat-label">Total Leads {% if date_filter != 'all' %}(Period){% endif %}</div>
   </a>
 
   <!-- Converted — toggles detail -->
   <div class="stat-card green stat-clickable" onclick="togglePanel('convertedPanel')" style="cursor:pointer;" id="cardConverted">
     <div class="stat-icon green">✅</div>
     <div class="stat-value">{{ stats.converted | default(0) }}</div>
-    <div class="stat-label">Converted <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
+    <div class="stat-label">Converted {% if date_filter != 'all' %}(Period){% endif %} <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
   </div>
 
   <!-- Follow Ups — toggles detail -->
   <div class="stat-card orange stat-clickable" onclick="togglePanel('followUpPanel')" style="cursor:pointer;" id="cardFollowUp">
     <div class="stat-icon orange">🔁</div>
     <div class="stat-value">{{ stats.follow_up | default(0) }}</div>
-    <div class="stat-label">Follow Ups <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
+    <div class="stat-label">Follow Ups {% if date_filter != 'all' %}(Period){% endif %} <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
   </div>
 
   <!-- Overdue Follow-ups (>24h) — toggles detail -->
   <div class="stat-card red stat-clickable" onclick="togglePanel('overduePanel')" style="cursor:pointer;" id="cardOverdue">
     <div class="stat-icon red">⚠️</div>
     <div class="stat-value">{{ stats.overdue_followups | default(0) }}</div>
-    <div class="stat-label">Overdue (>24h) <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
+    <div class="stat-label">Overdue (>24h) {% if date_filter != 'all' %}(Period){% endif %} <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
   </div>
 </div>
 
@@ -51,31 +109,31 @@
 <div class="stats-grid" style="margin-bottom:28px;">
 
   <!-- Calls Today — toggles detail -->
-  <div class="stat-card blue stat-clickable" onclick="togglePanel('callsTodayPanel')" style="cursor:pointer;" id="cardCallsToday">
+  <div class="stat-card blue stat-clickable {% if active_panel == 'callsTodayPanel' and calls_filter == 'today' %}active-card{% endif %}" onclick="location.href='{{ url_for('admin_dashboard', active_panel='callsTodayPanel', calls_filter='today' if date_filter == 'all' else 'all', date_filter=date_filter, start_date=start_date, end_date=end_date) }}'" style="cursor:pointer;" id="cardCallsToday">
     <div class="stat-icon blue">📞</div>
     <div class="stat-value">{{ stats.today_calls | default(0) }}</div>
-    <div class="stat-label">Calls Today <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
+    <div class="stat-label">{% if date_filter == 'all' or date_filter == 'today' %}Calls Today{% elif date_filter == 'yesterday' %}Calls Yesterday{% elif date_filter == 'last_7_days' %}Calls Last 7 Days{% else %}Calls (Period){% endif %} <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
   </div>
 
   <!-- Attempted Calls -->
-  <div class="stat-card blue">
+  <div class="stat-card blue stat-clickable {% if active_panel == 'callsTodayPanel' and date_filter == 'all' and calls_filter == 'all' %}active-card{% endif %}" onclick="location.href='{{ url_for('admin_dashboard', active_panel='callsTodayPanel', calls_filter='all', date_filter=date_filter, start_date=start_date, end_date=end_date) }}'" style="cursor:pointer;" id="cardAttemptedCalls">
     <div class="stat-icon blue">☎️</div>
     <div class="stat-value">{{ stats.attempted_calls | default(0) }}</div>
-    <div class="stat-label">Attempted Calls</div>
+    <div class="stat-label">Attempted Calls {% if date_filter != 'all' %}(Period){% endif %} <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
   </div>
 
   <!-- Connected Calls -->
-  <div class="stat-card green">
+  <div class="stat-card green stat-clickable {% if active_panel == 'callsTodayPanel' and calls_filter == 'connected' %}active-card{% endif %}" onclick="location.href='{{ url_for('admin_dashboard', active_panel='callsTodayPanel', calls_filter='connected', date_filter=date_filter, start_date=start_date, end_date=end_date) }}'" style="cursor:pointer;" id="cardConnectedCalls">
     <div class="stat-icon green">📞</div>
     <div class="stat-value">{{ stats.connected_calls | default(0) }}</div>
-    <div class="stat-label">Connected Calls</div>
+    <div class="stat-label">Connected Calls {% if date_filter != 'all' %}(Period){% endif %} <span style="font-size:0.65rem;opacity:0.6;">▼</span></div>
   </div>
 
   <!-- Revenue -->
   <div class="stat-card orange">
     <div class="stat-icon orange">💰</div>
     <div class="stat-value">{{ stats.revenue | inr }}</div>
-    <div class="stat-label">Revenue (Sales)</div>
+    <div class="stat-label">Revenue {% if date_filter != 'all' %}(Period){% else %}(All Time){% endif %}</div>
   </div>
 </div>
 
@@ -92,7 +150,7 @@
     <thead><tr>
       <th>Lead Name / Bootcamp</th><th>Phone</th><th>Campaign</th><th>Level</th><th>Agent</th>
       <th>
-        <a href="{{ url_for('admin_dashboard', sort_conv='desc' if sort_conv == 'asc' else 'asc') }}" 
+        <a href="{{ url_for('admin_dashboard', sort_conv='desc' if sort_conv == 'asc' else 'asc', date_filter=date_filter, start_date=start_date, end_date=end_date) }}" 
            style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
           Converted On
           <span>{% if sort_conv == 'desc' %}▼{% else %}▲{% endif %}</span>
@@ -125,11 +183,11 @@
   </table>
   <div class="pagination" style="margin: 10px 18px; justify-content: flex-end; display: flex; gap: 8px;">
     {% if page_conv > 1 %}
-      <a href="{{ url_for('admin_dashboard', page_conv=page_conv-1, page_fu=page_fu, page_calls=page_calls, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='convertedPanel') }}" class="page-btn">‹ Prev</a>
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv-1, page_fu=page_fu, page_calls=page_calls, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='convertedPanel', date_filter=date_filter, start_date=start_date, end_date=end_date) }}" class="page-btn">‹ Prev</a>
     {% endif %}
     <span class="page-btn active">{{ page_conv }}</span>
     {% if has_next_conv %}
-      <a href="{{ url_for('admin_dashboard', page_conv=page_conv+1, page_fu=page_fu, page_calls=page_calls, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='convertedPanel') }}" class="page-btn">Next ›</a>
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv+1, page_fu=page_fu, page_calls=page_calls, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='convertedPanel', date_filter=date_filter, start_date=start_date, end_date=end_date) }}" class="page-btn">Next ›</a>
     {% endif %}
   </div>
   {% else %}
@@ -177,11 +235,11 @@
   </table>
   <div class="pagination" style="margin: 10px 18px; justify-content: flex-end; display: flex; gap: 8px;">
     {% if page_fu > 1 %}
-      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu-1, page_calls=page_calls, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='followUpPanel') }}" class="page-btn">‹ Prev</a>
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu-1, page_calls=page_calls, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='followUpPanel', date_filter=date_filter, start_date=start_date, end_date=end_date) }}" class="page-btn">‹ Prev</a>
     {% endif %}
     <span class="page-btn active">{{ page_fu }}</span>
     {% if has_next_fu %}
-      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu+1, page_calls=page_calls, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='followUpPanel') }}" class="page-btn">Next ›</a>
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu+1, page_calls=page_calls, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='followUpPanel', date_filter=date_filter, start_date=start_date, end_date=end_date) }}" class="page-btn">Next ›</a>
     {% endif %}
   </div>
   {% else %}
@@ -231,11 +289,11 @@
   </table>
   <div class="pagination" style="margin: 10px 18px; justify-content: flex-end; display: flex; gap: 8px;">
     {% if page_overdue > 1 %}
-      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu, page_calls=page_calls, page_overdue=page_overdue-1, sort_conv=sort_conv, active_panel='overduePanel') }}" class="page-btn">‹ Prev</a>
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu, page_calls=page_calls, page_overdue=page_overdue-1, sort_conv=sort_conv, active_panel='overduePanel', date_filter=date_filter, start_date=start_date, end_date=end_date) }}" class="page-btn">‹ Prev</a>
     {% endif %}
     <span class="page-btn active">{{ page_overdue }}</span>
     {% if has_next_overdue %}
-      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu, page_calls=page_calls, page_overdue=page_overdue+1, sort_conv=sort_conv, active_panel='overduePanel') }}" class="page-btn">Next ›</a>
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu, page_calls=page_calls, page_overdue=page_overdue+1, sort_conv=sort_conv, active_panel='overduePanel', date_filter=date_filter, start_date=start_date, end_date=end_date) }}" class="page-btn">Next ›</a>
     {% endif %}
   </div>
   {% else %}
@@ -246,12 +304,35 @@
 <!-- Calls Today Panel -->
 <div id="callsTodayPanel" class="drilldown-panel" style="display:none;">
   <div class="drilldown-header">
-    <span>📞 Calls Made Today</span>
+    <span>📞 Calls Made {% if date_filter == 'today' %}Today{% elif date_filter == 'yesterday' %}Yesterday{% elif date_filter == 'last_7_days' %}in Last 7 Days{% elif date_filter == 'custom' %}in Selected Range{% else %}Today{% endif %}</span>
   </div>
+  
+  <!-- Filter tabs -->
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 18px; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.02); gap:12px; flex-wrap:wrap;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Filter:</span>
+      <div style="display:flex; background:var(--bg-main); padding:3px; border-radius:8px; border:1px solid var(--border);">
+        {% if date_filter == 'all' %}
+        <a href="{{ url_for('admin_dashboard', active_panel='callsTodayPanel', calls_filter='today', date_filter=date_filter, start_date=start_date, end_date=end_date) }}" 
+           class="calls-filter-tab {% if calls_filter == 'today' %}active{% endif %}">☀️ Today Only</a>
+        {% endif %}
+        <a href="{{ url_for('admin_dashboard', active_panel='callsTodayPanel', calls_filter='all', date_filter=date_filter, start_date=start_date, end_date=end_date) }}" 
+           class="calls-filter-tab {% if calls_filter == 'all' %}active{% endif %}">☎️ All Dialed</a>
+        <a href="{{ url_for('admin_dashboard', active_panel='callsTodayPanel', calls_filter='connected', date_filter=date_filter, start_date=start_date, end_date=end_date) }}" 
+           class="calls-filter-tab {% if calls_filter == 'connected' %}active{% endif %}">📞 Connected</a>
+        <a href="{{ url_for('admin_dashboard', active_panel='callsTodayPanel', calls_filter='unconnected', date_filter=date_filter, start_date=start_date, end_date=end_date) }}" 
+           class="calls-filter-tab {% if calls_filter == 'unconnected' %}active{% endif %}">📵 Unconnected</a>
+      </div>
+    </div>
+    <div style="font-size:0.8rem; color:var(--text-muted); font-weight:500;">
+      Showing <strong style="color:var(--text-accent);">{{ detail.today_call_logs | length }}{% if has_next_calls %}+{% endif %}</strong> records
+    </div>
+  </div>
+
   {% if detail.today_call_logs %}
   <table>
     <thead><tr>
-      <th>Lead Name</th><th>Phone</th><th>Bootcamp</th><th>Agent</th><th>Call Status</th><th>Called At</th>
+      <th>Lead Name</th><th>Phone</th><th>Campaign</th><th>Bootcamp</th><th>Agent</th><th>Call Status</th><th>Called At</th>
     </tr></thead>
     <tbody>
     {% for call in detail.today_call_logs %}
@@ -259,6 +340,13 @@
     <tr>
       <td style="font-weight:600;">{{ lead.lead_name or '—' }}</td>
       <td class="phone-num">{{ lead.contact_no or '—' }}</td>
+      <td>
+        {% if lead.campaign_type %}
+          <span class="badge badge-purple">{{ lead.campaign_type | campaign_label }}</span>
+        {% else %}
+          <span style="color:var(--text-muted);">—</span>
+        {% endif %}
+      </td>
       <td style="font-size:0.8rem;color:var(--text-muted);max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ lead.bootcamp_title or '—' }}</td>
       <td>
         {% if call.agent_name %}
@@ -282,15 +370,15 @@
   </table>
   <div class="pagination" style="margin: 10px 18px; justify-content: flex-end; display: flex; gap: 8px;">
     {% if page_calls > 1 %}
-      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu, page_calls=page_calls-1, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='callsTodayPanel') }}" class="page-btn">‹ Prev</a>
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu, page_calls=page_calls-1, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='callsTodayPanel', date_filter=date_filter, start_date=start_date, end_date=end_date, calls_filter=calls_filter) }}" class="page-btn">‹ Prev</a>
     {% endif %}
     <span class="page-btn active">{{ page_calls }}</span>
     {% if has_next_calls %}
-      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu, page_calls=page_calls+1, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='callsTodayPanel') }}" class="page-btn">Next ›</a>
+      <a href="{{ url_for('admin_dashboard', page_conv=page_conv, page_fu=page_fu, page_calls=page_calls+1, page_overdue=page_overdue, sort_conv=sort_conv, active_panel='callsTodayPanel', date_filter=date_filter, start_date=start_date, end_date=end_date, calls_filter=calls_filter) }}" class="page-btn">Next ›</a>
     {% endif %}
   </div>
   {% else %}
-  <div class="empty-state" style="padding:24px;"><span class="empty-icon">📭</span><p>No calls logged today</p></div>
+  <div class="empty-state" style="padding:24px;"><span class="empty-icon">📭</span><p>No matching calls logged in this period</p></div>
   {% endif %}
 </div>
 
@@ -432,6 +520,31 @@ document.addEventListener('DOMContentLoaded', () => {
 .drilldown-panel table { margin: 0; border-radius: 0; }
 .stat-clickable { transition: transform 0.15s, box-shadow 0.15s; }
 .stat-clickable:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.active-card {
+  outline: 2px solid var(--accent-1) !important;
+  outline-offset: -2px;
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.25) !important;
+}
+.calls-filter-tab {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: all var(--t-normal);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.calls-filter-tab:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+}
+.calls-filter-tab.active {
+  color: #fff !important;
+  background: var(--accent-1) !important;
+}
 @keyframes slideDown {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }

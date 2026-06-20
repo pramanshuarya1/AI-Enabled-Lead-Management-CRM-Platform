@@ -308,6 +308,68 @@ def admin_dashboard():
     except ValueError:
         page_overdue = 1
 
+    # Date Range filtering
+    date_filter = request.args.get('date_filter', 'all')
+    start_date_str = request.args.get('start_date', '')
+    end_date_str = request.args.get('end_date', '')
+
+    calls_filter = request.args.get('calls_filter', '')
+    if not calls_filter:
+        calls_filter = 'today' if date_filter == 'all' else 'all'
+    if date_filter != 'all' and calls_filter == 'today':
+        calls_filter = 'all'
+    if calls_filter not in ['today', 'all', 'connected', 'unconnected']:
+        calls_filter = 'today' if date_filter == 'all' else 'all'
+
+    from datetime import timezone as py_timezone, timedelta as py_timedelta, date
+    ist = py_timezone(py_timedelta(hours=5, minutes=30))
+    now_local = datetime.now(timezone.utc).astimezone(ist)
+    today_ist = now_local.date()
+
+    start_utc = None
+    end_utc = None
+    start_day = today_ist
+    end_day = today_ist
+
+    if date_filter == 'today':
+        start_day = today_ist
+        end_day = today_ist
+        start_dt = datetime.combine(start_day, datetime.min.time()).replace(tzinfo=ist)
+        end_dt = datetime.combine(end_day, datetime.max.time()).replace(tzinfo=ist)
+        start_utc = start_dt.astimezone(timezone.utc).isoformat()
+        end_utc = end_dt.astimezone(timezone.utc).isoformat()
+    elif date_filter == 'yesterday':
+        start_day = today_ist - py_timedelta(days=1)
+        end_day = start_day
+        start_dt = datetime.combine(start_day, datetime.min.time()).replace(tzinfo=ist)
+        end_dt = datetime.combine(end_day, datetime.max.time()).replace(tzinfo=ist)
+        start_utc = start_dt.astimezone(timezone.utc).isoformat()
+        end_utc = end_dt.astimezone(timezone.utc).isoformat()
+    elif date_filter == 'last_7_days':
+        start_day = today_ist - py_timedelta(days=6)
+        end_day = today_ist
+        start_dt = datetime.combine(start_day, datetime.min.time()).replace(tzinfo=ist)
+        end_dt = datetime.combine(end_day, datetime.max.time()).replace(tzinfo=ist)
+        start_utc = start_dt.astimezone(timezone.utc).isoformat()
+        end_utc = end_dt.astimezone(timezone.utc).isoformat()
+    elif date_filter == 'custom':
+        try:
+            if start_date_str:
+                start_day = date.fromisoformat(start_date_str)
+            else:
+                start_day = today_ist
+            if end_date_str:
+                end_day = date.fromisoformat(end_date_str)
+            else:
+                end_day = today_ist
+
+            start_dt = datetime.combine(start_day, datetime.min.time()).replace(tzinfo=ist)
+            end_dt = datetime.combine(end_day, datetime.max.time()).replace(tzinfo=ist)
+            start_utc = start_dt.astimezone(timezone.utc).isoformat()
+            end_utc = end_dt.astimezone(timezone.utc).isoformat()
+        except Exception as date_err:
+            app.logger.warning(f"Error parsing custom dates: {date_err}")
+
     # ── Defaults ─────────────────────────────────────────────────────────
     stats  = {'total_leads': 0, 'converted': 0, 'follow_up': 0,
               'today_calls': 0, 'campaign_stats': {},
@@ -320,15 +382,30 @@ def admin_dashboard():
         from concurrent.futures import ThreadPoolExecutor
         campaign_types = ['atpitch_sia','atpitch_sta','atpitch_others','upsell','fp_l1']
 
+        q_total = supabase_admin.table('leads').select('id', count='exact')
+        q_converted = supabase_admin.table('leads').select('id', count='exact').eq('final_status', 'Converted')
+        q_follow_up = supabase_admin.table('leads').select('id', count='exact').in_('final_status', FOLLOW_UP_STATUSES)
+        q_attempted = supabase_admin.table('call_attempts').select('id', count='exact')
+        q_connected = supabase_admin.table('call_attempts').select('id', count='exact').eq('connected', True)
+
+        if start_utc and end_utc:
+            q_total = q_total.gte('created_at', start_utc).lte('created_at', end_utc)
+            q_converted = q_converted.gte('last_call_date', start_utc).lte('last_call_date', end_utc)
+            q_attempted = q_attempted.gte('called_at', start_utc).lte('called_at', end_utc)
+            q_connected = q_connected.gte('called_at', start_utc).lte('called_at', end_utc)
+
         queries = {
-            'total': supabase_admin.table('leads').select('id', count='exact'),
-            'converted': supabase_admin.table('leads').select('id', count='exact').eq('final_status', 'Converted'),
-            'follow_up': supabase_admin.table('leads').select('id', count='exact').in_('final_status', FOLLOW_UP_STATUSES),
-            'attempted_calls': supabase_admin.table('call_attempts').select('id', count='exact'),
-            'connected_calls': supabase_admin.table('call_attempts').select('id', count='exact').eq('connected', True),
+            'total': q_total,
+            'converted': q_converted,
+            'follow_up': q_follow_up,
+            'attempted_calls': q_attempted,
+            'connected_calls': q_connected,
         }
         for ct in campaign_types:
-            queries[f'camp_{ct}'] = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct)
+            q_camp = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct)
+            if start_utc and end_utc:
+                q_camp = q_camp.gte('created_at', start_utc).lte('created_at', end_utc)
+            queries[f'camp_{ct}'] = q_camp
 
         def get_count_val(q):
             return q.execute().count or 0
@@ -352,13 +429,15 @@ def admin_dashboard():
 
         total = counts.get('total', 0)
         n_conv = counts.get('converted', 0)
-        n_fu = counts.get('follow_up', 0)
         attempted_calls = counts.get('attempted_calls', 0)
         connected_calls = counts.get('connected_calls', 0)
         campaign_stats = {ct: counts.get(f'camp_{ct}', 0) for ct in campaign_types}
 
         # Query to compute total revenue
-        revenue_resp = supabase_admin.table('call_attempts').select('amount_paid').eq('call_status', 'converted').execute()
+        revenue_query = supabase_admin.table('call_attempts').select('amount_paid').eq('call_status', 'converted')
+        if start_utc and end_utc:
+            revenue_query = revenue_query.gte('called_at', start_utc).lte('called_at', end_utc)
+        revenue_resp = revenue_query.execute()
         revenue_data = revenue_resp.data or []
         total_revenue = sum(float(row.get('amount_paid') or 0) for row in revenue_data)
 
@@ -369,7 +448,10 @@ def admin_dashboard():
             .select('id,lead_name,contact_no,bootcamp_title,campaign_type,'
                     'priority,agent_name,final_status,last_call_date,updated_at,contacted_by') \
             .eq('final_status', 'Converted')
-        
+
+        if start_utc and end_utc:
+            query_conv = query_conv.gte('last_call_date', start_utc).lte('last_call_date', end_utc)
+
         if sort_conv == 'asc':
             query_conv = query_conv.order('last_call_date', desc=False, nullsfirst=True)
         else:
@@ -386,10 +468,6 @@ def admin_dashboard():
             .limit(1000) \
             .execute()
         follow_up_all = follow_up_all_resp.data or []
-
-        # Latest 50 follow ups for the Follow-Up Leads panel
-        follow_up_leads = sorted(follow_up_all,
-                                 key=lambda x: x.get('last_call_date') or '', reverse=True)[:50]
 
         # Calculate overdue follow-ups
         attempts_resp = supabase_admin.table('call_attempts')\
@@ -408,17 +486,28 @@ def admin_dashboard():
                     'time': att.get('follow_up_time')
                 }
 
-        from datetime import timezone as py_timezone, timedelta as py_timedelta
-        ist = py_timezone(py_timedelta(hours=5, minutes=30))
-        now_local = datetime.now(py_timezone.utc).astimezone(ist)
-
+        # Filter follow-ups and overdue leads based on date_filter
+        filtered_follow_up_all = []
         overdue_leads = []
+
         for lead in follow_up_all:
             info = followup_info.get(lead['id'], {})
             lead_date = info.get('date') or lead.get('fp_date')
             lead_time = info.get('time') or lead.get('fp_time')
             lead['follow_up_date'] = lead_date
             lead['follow_up_time'] = lead_time
+
+            if date_filter != 'all':
+                if not lead_date:
+                    continue
+                try:
+                    if not (start_day <= date.fromisoformat(lead_date) <= end_day):
+                        continue
+                except Exception:
+                    continue
+
+            filtered_follow_up_all.append(lead)
+
             if lead_date:
                 try:
                     t_str = lead_time if lead_time else "00:00:00"
@@ -435,6 +524,11 @@ def admin_dashboard():
 
         overdue_leads = sorted(overdue_leads, key=lambda x: x.get('hours_overdue', 0), reverse=True)
 
+        if date_filter != 'all':
+            n_fu = len(filtered_follow_up_all)
+        else:
+            n_fu = counts.get('follow_up', 0)
+
         stats.update({
             'total_leads':       total,
             'converted':         n_conv,
@@ -445,9 +539,9 @@ def admin_dashboard():
             'connected_calls':   connected_calls,
             'revenue':           total_revenue,
         })
-        
+
         # Paginate follow-ups list
-        follow_up_all_sorted = sorted(follow_up_all,
+        follow_up_all_sorted = sorted(filtered_follow_up_all,
                                       key=lambda x: x.get('last_call_date') or '', reverse=True)
         offset_fu = (page_fu - 1) * 20
         follow_up_leads = follow_up_all_sorted[offset_fu : offset_fu + 20]
@@ -469,26 +563,52 @@ def admin_dashboard():
         has_next_fu = False
         has_next_overdue = False
 
-    # ── Query 2: today's call count ────────────────────────────────────────
+    # ── Query 2: call count in period ────────────────────────────────────────
     try:
-        tc = supabase_admin.table('call_attempts') \
-            .select('id', count='exact') \
-            .gte('called_at', today).execute()
+        tc_query = supabase_admin.table('call_attempts').select('id', count='exact')
+        if start_utc and end_utc:
+            tc_query = tc_query.gte('called_at', start_utc).lte('called_at', end_utc)
+        else:
+            today_start_dt = datetime.combine(today_ist, datetime.min.time()).replace(tzinfo=ist)
+            today_end_dt = datetime.combine(today_ist, datetime.max.time()).replace(tzinfo=ist)
+            today_start_utc = today_start_dt.astimezone(timezone.utc).isoformat()
+            today_end_utc = today_end_dt.astimezone(timezone.utc).isoformat()
+            tc_query = tc_query.gte('called_at', today_start_utc).lte('called_at', today_end_utc)
+        tc = tc_query.execute()
         stats['today_calls'] = tc.count or 0
     except Exception:
         stats['today_calls'] = 0
 
-    # ── Query 3: today's call detail (for drilldown) ──────────────────────
+    # ── Query 3: call detail in period (for drilldown) ──────────────────────
     try:
         offset_calls = (page_calls - 1) * 20
-        tcl = supabase_admin.table('call_attempts') \
-            .select('id,called_at,call_status,agent_name,leads(lead_name,contact_no,bootcamp_title,campaign_type)') \
-            .gte('called_at', today) \
-            .order('called_at', desc=True) \
+        tcl_query = supabase_admin.table('call_attempts') \
+            .select('id,called_at,call_status,agent_name,connected,leads(lead_name,contact_no,bootcamp_title,campaign_type)')
+        
+        # Apply date filtering based on active range and filter type
+        calls_start_utc = start_utc
+        calls_end_utc = end_utc
+        if date_filter == 'all' and calls_filter == 'today':
+            today_start_dt = datetime.combine(today_ist, datetime.min.time()).replace(tzinfo=ist)
+            today_end_dt = datetime.combine(today_ist, datetime.max.time()).replace(tzinfo=ist)
+            calls_start_utc = today_start_dt.astimezone(timezone.utc).isoformat()
+            calls_end_utc = today_end_dt.astimezone(timezone.utc).isoformat()
+            
+        if calls_start_utc and calls_end_utc:
+            tcl_query = tcl_query.gte('called_at', calls_start_utc).lte('called_at', calls_end_utc)
+            
+        # Apply connection filter
+        if calls_filter == 'connected':
+            tcl_query = tcl_query.eq('connected', True)
+        elif calls_filter == 'unconnected':
+            tcl_query = tcl_query.eq('connected', False)
+
+        tcl = tcl_query.order('called_at', desc=True) \
             .range(offset_calls, offset_calls + 19).execute()
         detail['today_call_logs'] = tcl.data or []
         has_next_calls = len(detail['today_call_logs']) == 20
-    except Exception:
+    except Exception as e:
+        app.logger.error(f"Error querying call logs: {e}")
         detail['today_call_logs'] = []
         has_next_calls = False
 
@@ -523,7 +643,11 @@ def admin_dashboard():
                            has_next_conv=has_next_conv,
                            has_next_fu=has_next_fu,
                            has_next_calls=has_next_calls,
-                           has_next_overdue=has_next_overdue)
+                           has_next_overdue=has_next_overdue,
+                           date_filter=date_filter,
+                           start_date=start_date_str or today_ist.isoformat(),
+                           end_date=end_date_str or today_ist.isoformat(),
+                           calls_filter=calls_filter)
 
 
 @app.route('/admin/dashboard/export_csv')
@@ -1506,7 +1630,12 @@ def agent_call_log(lead_id):
                     call_data['follow_up_time'] = fu_time_str or None
 
                 if call_status == 'converted':
-                    call_data['amount_paid'] = float(request.form.get('amount_paid') or 0) or None
+                    amount_paid_val = float(request.form.get('amount_paid') or 0)
+                    # Server-side enforcement: amount_paid must be > 0 for conversions
+                    if amount_paid_val <= 0:
+                        flash('❌ Conversion requires a payment amount greater than zero. Please enter the amount paid.', 'error')
+                        return redirect(url_for('agent_call_log', lead_id=lead_id))
+                    call_data['amount_paid'] = amount_paid_val
                     call_data['token_amount'] = float(request.form.get('token_amount') or 0) or None
                     call_data['discount_amount'] = float(request.form.get('discount_amount') or 0) or None
                     call_data['bootcamp_price'] = float(request.form.get('bootcamp_price') or 0) or None
