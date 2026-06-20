@@ -85,6 +85,10 @@ graph TD
 * **Shared Lead Execution:** When an agent logs a call attempt/entry on a lead, the lead's `agent_name` column is updated to include all active agents.
 * **Immediate Visibility:** The lead dynamically appears on all agents' dashboards, allowing seamless team-wide tracking.
 
+### 🗑️ Global Visibility for Discarded Leads
+* **Discarded Lead Sharing:** When any lead is marked with the final status `Discarded` (either directly or via logging a call attempt outcome as `discarded`), it becomes globally visible and accessible to all agents who have permission for that campaign type.
+* **Open to Contact:** Discarded leads bypass ownership checks, allowing any permitted agent to view the lead's details, access call history / follow-up timelines, and log additional call attempts.
+
 ---
 
 ## 🛠 Technology Stack
