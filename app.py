@@ -1331,7 +1331,7 @@ def agent_campaign(campaign_type):
     try:
         query = supabase_admin.table('leads').select('*').eq('campaign_type', campaign_type)
         if not is_admin:
-            query = query.or_(f"and(agent_name.ilike.%{agent_name}%,or(final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\"")
+            query = query.or_(f"and(agent_name.ilike.%{agent_name}%,or(final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
         if status_filter:
             if status_filter == 'Follow Up':
                 query = query.in_('final_status', FOLLOW_UP_STATUSES)
@@ -1381,7 +1381,7 @@ def agent_lead_detail(lead_id):
                 flash('Access denied.', 'error')
                 return redirect(url_for('agent_dashboard'))
             assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
-            if lead.get('final_status') not in ['Converted', 'Already Enrolled']:
+            if lead.get('final_status') not in ['Converted', 'Already Enrolled', 'Discarded']:
                 if agent_name.lower() not in [a.lower() for a in assigned_agents]:
                     flash('Access denied.', 'error')
                     return redirect(url_for('agent_dashboard'))
@@ -1423,7 +1423,7 @@ def agent_call_log(lead_id):
                 flash('Access denied.', 'error')
                 return redirect(url_for('agent_dashboard'))
             assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
-            if lead.get('final_status') not in ['Converted', 'Already Enrolled']:
+            if lead.get('final_status') not in ['Converted', 'Already Enrolled', 'Discarded']:
                 if agent_name.lower() not in [a.lower() for a in assigned_agents]:
                     flash('Access denied.', 'error')
                     return redirect(url_for('agent_dashboard'))
@@ -1598,7 +1598,7 @@ def agent_followup(lead_id):
                 flash('Access denied.', 'error')
                 return redirect(url_for('agent_dashboard'))
             assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
-            if lead.get('final_status') not in ['Converted', 'Already Enrolled']:
+            if lead.get('final_status') not in ['Converted', 'Already Enrolled', 'Discarded']:
                 if agent_name.lower() not in [a.lower() for a in assigned_agents]:
                     flash('Access denied.', 'error')
                     return redirect(url_for('agent_dashboard'))
@@ -1811,7 +1811,7 @@ def agent_leads_list():
             query = supabase_admin.table('leads').select('*')
             if not is_admin:
                 query = query.in_('campaign_type', allowed)
-                query = query.or_(f"and(agent_name.ilike.%{agent_name}%,or(final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\"")
+                query = query.or_(f"and(agent_name.ilike.%{agent_name}%,or(final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
 
         if status_filter:
             if status_filter == 'Follow Up':
@@ -1904,7 +1904,7 @@ def api_search_leads():
                 query = query.eq('campaign_type', campaign)
             else:
                 query = query.in_('campaign_type', allowed)
-            query = query.or_(f"and(agent_name.ilike.%{user['name']}%,or(final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{user['name']})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\"")
+            query = query.or_(f"and(agent_name.ilike.%{user['name']}%,or(final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{user['name']})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
         else:
             if campaign:
                 query = query.eq('campaign_type', campaign)
