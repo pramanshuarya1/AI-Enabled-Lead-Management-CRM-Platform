@@ -69,62 +69,82 @@ def get_current_user():
 
 @app.context_processor
 def inject_agent_stats():
+    from datetime import timedelta, date as dt_date
     user = get_current_user()
     if not user or user.get('role') != 'agent':
         return {}
-    
+
     agent_name = user['name']
-    stats = {
-        'dialed': 0,
-        'connected': 0,
-        'follow_ups': 0,
-        'pending': 0,
-        'converted': 0,
-        'discarded': 0
-    }
-    
+    stats = {'dialed': 0, 'connected': 0, 'follow_ups': 0, 'pending': 0, 'converted': 0, 'discarded': 0}
+
+    # Date filter from request (default: today)
+    ist_tz = timezone(timedelta(hours=5, minutes=30))
+    now_ist = datetime.now(ist_tz)
+    today_ist = now_ist.date()
+    perf_filter = request.args.get('perf_filter', 'today')
+    perf_start  = request.args.get('perf_start', '')
+    perf_end    = request.args.get('perf_end', '')
+
+    start_utc = None
+    end_utc   = None
+    if perf_filter == 'today':
+        s = datetime.combine(today_ist, datetime.min.time()).replace(tzinfo=ist_tz)
+        e = datetime.combine(today_ist, datetime.max.time()).replace(tzinfo=ist_tz)
+        start_utc = s.astimezone(timezone.utc).isoformat()
+        end_utc   = e.astimezone(timezone.utc).isoformat()
+    elif perf_filter == 'yesterday':
+        yest = today_ist - timedelta(days=1)
+        s = datetime.combine(yest, datetime.min.time()).replace(tzinfo=ist_tz)
+        e = datetime.combine(yest, datetime.max.time()).replace(tzinfo=ist_tz)
+        start_utc = s.astimezone(timezone.utc).isoformat()
+        end_utc   = e.astimezone(timezone.utc).isoformat()
+    elif perf_filter == 'custom' and perf_start and perf_end:
+        try:
+            s = datetime.combine(dt_date.fromisoformat(perf_start), datetime.min.time()).replace(tzinfo=ist_tz)
+            e = datetime.combine(dt_date.fromisoformat(perf_end), datetime.max.time()).replace(tzinfo=ist_tz)
+            start_utc = s.astimezone(timezone.utc).isoformat()
+            end_utc   = e.astimezone(timezone.utc).isoformat()
+        except Exception:
+            pass
+
     try:
-        calls_resp = supabase_admin.table('call_attempts') \
-            .select('lead_id, connected') \
-            .ilike('agent_name', agent_name) \
-            .execute()
-        calls = calls_resp.data or []
-        
-        dialed_lids = set()
+        q = supabase_admin.table('call_attempts')\
+            .select('lead_id, connected, call_status')\
+            .ilike('agent_name', agent_name)
+        if start_utc and end_utc:
+            q = q.gte('called_at', start_utc).lte('called_at', end_utc)
+        calls = q.execute().data or []
+
+        dialed_lids    = set()
         connected_lids = set()
+        follow_up_lids = set()
+        converted_lids = set()
+        discarded_lids = set()
+
         for c in calls:
             lid = c.get('lead_id')
             dialed_lids.add(lid)
             if c.get('connected'):
                 connected_lids.add(lid)
-        
-        stats['dialed'] = len(dialed_lids)
-        stats['connected'] = len(connected_lids)
+            cs = c.get('call_status') or ''
+            if cs in ['follow_up', 'call_back_later', 'need_more_detail']:
+                follow_up_lids.add(lid)
+            elif cs == 'converted':
+                converted_lids.add(lid)
+            elif cs == 'discarded':
+                discarded_lids.add(lid)
+
+        stats['dialed']     = len(dialed_lids)
+        stats['connected']  = len(connected_lids)
+        stats['follow_ups'] = len(follow_up_lids)
+        stats['converted']  = len(converted_lids)
+        stats['discarded']  = len(discarded_lids)
     except Exception as e:
         app.logger.error(f"Error context processor call_attempts: {e}")
-        
-    try:
-        leads_resp = supabase_admin.table('leads') \
-            .select('final_status') \
-            .ilike('contacted_by', agent_name) \
-            .execute()
-        leads = leads_resp.data or []
-        
-        for l in leads:
-            status = l.get('final_status')
-            if status == 'Converted':
-                stats['converted'] += 1
-            elif status == 'Discarded':
-                stats['discarded'] += 1
-            elif status in ['Follow Up', 'Call Back Later']:
-                stats['follow_ups'] += 1
-            
-            # stats['pending'] is no longer accumulated by status == 'Pending'
-    except Exception as e:
         app.logger.error(f"Error context processor leads: {e}")
-        
+
     stats['pending'] = max(0, stats['dialed'] - stats['connected'])
-    return {'agent_sidebar_stats': stats}
+    return {'agent_sidebar_stats': stats, 'perf_filter': perf_filter, 'perf_start': perf_start, 'perf_end': perf_end}
 
 
 # ============================================================
@@ -446,7 +466,8 @@ def admin_dashboard():
         offset_conv = (page_conv - 1) * 20
         query_conv = supabase_admin.table('leads') \
             .select('id,lead_name,contact_no,bootcamp_title,campaign_type,'
-                    'priority,agent_name,final_status,last_call_date,updated_at,contacted_by') \
+                    'priority,agent_name,final_status,last_call_date,updated_at,contacted_by,'
+                    'call_attempts(call_status,amount_paid)') \
             .eq('final_status', 'Converted')
 
         if start_utc and end_utc:
@@ -458,7 +479,15 @@ def admin_dashboard():
             query_conv = query_conv.order('last_call_date', desc=True, nullsfirst=False)
 
         converted_leads_resp = query_conv.range(offset_conv, offset_conv + 19).execute()
-        converted_leads = converted_leads_resp.data or []
+        converted_leads_raw = converted_leads_resp.data or []
+
+        # Attach amount_paid from the converted call_attempt to each lead
+        converted_leads = []
+        for lead in converted_leads_raw:
+            atts = lead.pop('call_attempts', []) or []
+            paid = next((a.get('amount_paid') for a in atts if a.get('call_status') == 'converted' and a.get('amount_paid')), None)
+            lead['amount_paid'] = paid
+            converted_leads.append(lead)
 
         # Fetch up to 1000 follow-up leads (to search for overdue status)
         follow_up_all_resp = supabase_admin.table('leads') \

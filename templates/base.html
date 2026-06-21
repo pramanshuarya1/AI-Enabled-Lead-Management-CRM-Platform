@@ -87,7 +87,30 @@
         {% if session.get('role') == 'agent' and agent_sidebar_stats %}
           <hr class="divider" style="margin: 12px 0 8px 0; opacity: 0.5;">
           <div class="nav-section-label" style="padding-top: 4px;">My Performance</div>
-          <div style="padding: 10px 20px; font-size: 0.82rem; display: flex; flex-direction: column; gap: 4px;">
+
+          <!-- Performance date filter -->
+          <div style="padding: 4px 12px 8px 12px;">
+            <select id="perfFilterSelect"
+              style="width:100%;background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);
+                     border-radius:6px;padding:5px 6px;font-size:0.76rem;font-weight:600;cursor:pointer;font-family:inherit;">
+              <option value="today"    {% if perf_filter == 'today' %}selected{% endif %}>🌅 Today</option>
+              <option value="yesterday"{% if perf_filter == 'yesterday' %}selected{% endif %}>🌃 Yesterday</option>
+              <option value="all"      {% if perf_filter == 'all' %}selected{% endif %}>⏱️ All Time</option>
+              <option value="custom"   {% if perf_filter == 'custom' %}selected{% endif %}>📅 Custom Range</option>
+            </select>
+            <!-- Custom range pickers (hidden unless custom selected) -->
+            <div id="perfCustomRange" style="display:{% if perf_filter == 'custom' %}flex{% else %}none{% endif %};flex-direction:column;gap:4px;margin-top:6px;">
+              <input type="date" id="perfStartDate" value="{{ perf_start }}"
+                style="width:100%;background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);
+                       border-radius:6px;padding:4px 6px;font-size:0.75rem;font-family:inherit;box-sizing:border-box;">
+              <input type="date" id="perfEndDate" value="{{ perf_end }}"
+                style="width:100%;background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);
+                       border-radius:6px;padding:4px 6px;font-size:0.75rem;font-family:inherit;box-sizing:border-box;">
+              <button onclick="applyPerfCustom()" class="btn btn-primary btn-sm" style="font-size:0.73rem;padding:4px 8px;margin-top:2px;">Apply</button>
+            </div>
+          </div>
+
+          <div style="padding: 2px 20px 10px 20px; font-size: 0.82rem; display: flex; flex-direction: column; gap: 4px;">
             <div class="performance-item">
               <span style="display:flex; align-items:center; gap:6px;">📞 Dialed Leads</span>
               <strong style="color:var(--accent-1); font-weight:700;">{{ agent_sidebar_stats.dialed }}</strong>
@@ -113,6 +136,38 @@
               <span class="badge badge-danger" style="font-size:0.68rem; padding:2px 7px; border-radius:10px;">{{ agent_sidebar_stats.discarded }}</span>
             </div>
           </div>
+
+          <script>
+          (function () {
+            const sel   = document.getElementById('perfFilterSelect');
+            const range = document.getElementById('perfCustomRange');
+
+            function applyFilter(filter, start, end) {
+              const url = new URL(window.location.href);
+              url.searchParams.set('perf_filter', filter);
+              if (filter === 'custom') {
+                url.searchParams.set('perf_start', start || '');
+                url.searchParams.set('perf_end',   end   || '');
+              } else {
+                url.searchParams.delete('perf_start');
+                url.searchParams.delete('perf_end');
+              }
+              window.location.href = url.toString();
+            }
+
+            sel.addEventListener('change', function () {
+              const f = this.value;
+              range.style.display = (f === 'custom') ? 'flex' : 'none';
+              if (f !== 'custom') applyFilter(f, '', '');
+            });
+
+            window.applyPerfCustom = function () {
+              const s = document.getElementById('perfStartDate').value;
+              const e = document.getElementById('perfEndDate').value;
+              if (s && e) applyFilter('custom', s, e);
+            };
+          })();
+          </script>
         {% endif %}
       </nav>
 

@@ -10,7 +10,7 @@
   <!-- Date filter dropdown -->
   <select id="exportDateFilter"
     style="background:var(--bg-card);color:var(--text-main);border:1px solid var(--border-color);
-           border-radius:8px;padding:6px 12px;font-size:0.82rem;font-weight:600;cursor:pointer;
+           border-radius:8px;padding:6px 4px;font-size:0.82rem;font-weight:600;cursor:pointer;
            font-family:inherit;height:36px;">
     <option value="all">⏱️ All Time</option>
     <option value="today">🌅 Today</option>
@@ -259,6 +259,7 @@
         <th>Campaign</th>
         <th>Level</th>
         <th>Agent</th>
+        <th style="color:var(--success);">Amount</th>
         <th>
           <a href="{{ url_for('admin_dashboard', sort_conv='desc' if sort_conv == 'asc' else 'asc', date_filter=date_filter, start_date=start_date, end_date=end_date) }}"
             style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
@@ -283,6 +284,13 @@
         <td>
           {% if lead.contacted_by %}
           <span class="agent-tag">🎧 {{ lead.contacted_by }}</span>
+          {% else %}
+          <span style="color:var(--text-muted);">—</span>
+          {% endif %}
+        </td>
+        <td style="font-weight:700;color:var(--success);white-space:nowrap;">
+          {% if lead.amount_paid %}
+          ₹{{ '{:,.0f}'.format(lead.amount_paid) }}
           {% else %}
           <span style="color:var(--text-muted);">—</span>
           {% endif %}
