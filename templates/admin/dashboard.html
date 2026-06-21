@@ -3,9 +3,87 @@
 {% block page_title %}Admin Dashboard{% endblock %}
 
 {% block top_actions %}
-<a href="{{ url_for('admin_export_report') }}" class="btn btn-secondary btn-sm" style="margin-right: 8px;">📊 Download
-  Detailed Report</a>
+
+<!-- ── Download Report Widget ─────────────────────────────── -->
+<div id="exportWidget" style="display:inline-flex;align-items:center;gap:8px;margin-right:8px;position:relative;">
+
+  <!-- Date filter dropdown -->
+  <select id="exportDateFilter"
+    style="background:var(--bg-card);color:var(--text-main);border:1px solid var(--border-color);
+           border-radius:8px;padding:6px 12px;font-size:0.82rem;font-weight:600;cursor:pointer;
+           font-family:inherit;height:36px;">
+    <option value="all">⏱️ All Time</option>
+    <option value="today">🌅 Today</option>
+    <option value="yesterday">🌃 Yesterday</option>
+    <option value="last_7_days">📅 Last 7 Days</option>
+    <option value="custom">✏️ Custom Date</option>
+  </select>
+
+  <!-- Custom date range (hidden by default) -->
+  <div id="exportCustomRange" style="display:none;align-items:center;gap:6px;">
+    <input type="date" id="exportStartDate"
+      style="background:var(--bg-card);color:var(--text-main);border:1px solid var(--border-color);
+             border-radius:8px;padding:5px 10px;font-size:0.8rem;font-family:inherit;height:36px;">
+    <span style="color:var(--text-muted);font-size:0.8rem;">→</span>
+    <input type="date" id="exportEndDate"
+      style="background:var(--bg-card);color:var(--text-main);border:1px solid var(--border-color);
+             border-radius:8px;padding:5px 10px;font-size:0.8rem;font-family:inherit;height:36px;">
+  </div>
+
+  <!-- Download button -->
+  <a id="exportDownloadBtn" href="{{ url_for('admin_export_report') }}"
+     class="btn btn-secondary btn-sm"
+     style="white-space:nowrap;height:36px;display:inline-flex;align-items:center;gap:6px;">
+    📊 Download Report
+  </a>
+</div>
+
 <a href="{{ url_for('admin_upload') }}" class="btn btn-primary btn-sm">📤 Upload Leads</a>
+
+<script>
+(function () {
+  const filterSel   = document.getElementById('exportDateFilter');
+  const customRange = document.getElementById('exportCustomRange');
+  const startInp    = document.getElementById('exportStartDate');
+  const endInp      = document.getElementById('exportEndDate');
+  const dlBtn       = document.getElementById('exportDownloadBtn');
+  const baseUrl     = "{{ url_for('admin_export_report') }}";
+
+  // Set today as default end date, 7 days ago as start
+  const pad = n => String(n).padStart(2, '0');
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+  const ago7 = new Date(today); ago7.setDate(today.getDate() - 6);
+  const ago7Str = `${ago7.getFullYear()}-${pad(ago7.getMonth()+1)}-${pad(ago7.getDate())}`;
+  startInp.value = ago7Str;
+  endInp.value   = todayStr;
+  startInp.max   = todayStr;
+  endInp.max     = todayStr;
+
+  function updateDownloadUrl() {
+    const f = filterSel.value;
+    // Show / hide custom pickers
+    customRange.style.display = (f === 'custom') ? 'flex' : 'none';
+
+    let url = baseUrl + '?date_filter=' + encodeURIComponent(f);
+    if (f === 'custom') {
+      const s = startInp.value;
+      const e = endInp.value;
+      if (s) url += '&start_date=' + encodeURIComponent(s);
+      if (e) url += '&end_date='   + encodeURIComponent(e);
+    }
+    dlBtn.href = url;
+  }
+
+  filterSel.addEventListener('change', updateDownloadUrl);
+  startInp.addEventListener('change',  updateDownloadUrl);
+  endInp.addEventListener('change',    updateDownloadUrl);
+
+  // Init with "Today" selected to match common use-case
+  filterSel.value = 'today';
+  updateDownloadUrl();
+})();
+</script>
 {% endblock %}
 
 {% block content %}

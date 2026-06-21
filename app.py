@@ -656,7 +656,7 @@ def admin_export_report():
     import csv
     import io
     from flask import Response
-    from datetime import timedelta
+    from datetime import timedelta, date as dt_date
 
     ist_tz = timezone(timedelta(hours=5, minutes=30))
 
@@ -664,24 +664,64 @@ def admin_export_report():
         if not dt_str:
             return ''
         try:
-            # Replace Z with UTC offset if present to handle standard ISO formats
             dt_utc = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
             dt_ist = dt_utc.astimezone(ist_tz)
             return dt_ist.strftime('%Y-%m-%d %I:%M %p')
         except Exception:
             return dt_str
 
+    # ── Date filter (mirrors dashboard logic) ────────────────────────────────
+    date_filter  = request.args.get('date_filter', 'all')
+    start_date   = request.args.get('start_date', '')
+    end_date     = request.args.get('end_date', '')
+
+    now_ist   = datetime.now(ist_tz)
+    today_ist = now_ist.date()
+
+    start_utc = None
+    end_utc   = None
+    filter_label = 'all_time'
+
+    if date_filter == 'today':
+        s = datetime.combine(today_ist, datetime.min.time()).replace(tzinfo=ist_tz)
+        e = datetime.combine(today_ist, datetime.max.time()).replace(tzinfo=ist_tz)
+        start_utc = s.astimezone(timezone.utc).isoformat()
+        end_utc   = e.astimezone(timezone.utc).isoformat()
+        filter_label = 'today'
+    elif date_filter == 'yesterday':
+        yest = today_ist - timedelta(days=1)
+        s = datetime.combine(yest, datetime.min.time()).replace(tzinfo=ist_tz)
+        e = datetime.combine(yest, datetime.max.time()).replace(tzinfo=ist_tz)
+        start_utc = s.astimezone(timezone.utc).isoformat()
+        end_utc   = e.astimezone(timezone.utc).isoformat()
+        filter_label = 'yesterday'
+    elif date_filter == 'last_7_days':
+        s = datetime.combine(today_ist - timedelta(days=6), datetime.min.time()).replace(tzinfo=ist_tz)
+        e = datetime.combine(today_ist, datetime.max.time()).replace(tzinfo=ist_tz)
+        start_utc = s.astimezone(timezone.utc).isoformat()
+        end_utc   = e.astimezone(timezone.utc).isoformat()
+        filter_label = 'last_7_days'
+    elif date_filter == 'custom' and start_date and end_date:
+        try:
+            s = datetime.combine(dt_date.fromisoformat(start_date), datetime.min.time()).replace(tzinfo=ist_tz)
+            e = datetime.combine(dt_date.fromisoformat(end_date), datetime.max.time()).replace(tzinfo=ist_tz)
+            start_utc = s.astimezone(timezone.utc).isoformat()
+            end_utc   = e.astimezone(timezone.utc).isoformat()
+            filter_label = f'{start_date}_to_{end_date}'
+        except Exception:
+            pass
+
+    # ── Fetch leads (paginated, optionally filtered by last_call_date) ────────
     all_leads = []
-    limit = 1000
+    limit  = 1000
     offset = 0
-    
+
     try:
         while True:
-            res = supabase_admin.table('leads')\
-                .select('*, call_attempts(*)')\
-                .range(offset, offset + limit - 1)\
-                .execute()
-            
+            q = supabase_admin.table('leads').select('*, call_attempts(*)')
+            if start_utc and end_utc:
+                q = q.gte('last_call_date', start_utc).lte('last_call_date', end_utc)
+            res = q.range(offset, offset + limit - 1).execute()
             batch = res.data or []
             if not batch:
                 break
@@ -699,7 +739,7 @@ def admin_export_report():
     
     # Headers
     headers = [
-        'Lead ID', 'Lead Name', 'Phone', 'Email', 'Campaign Type',
+        'Lead ID', 'Lead Name', 'Date & Time (Last Call)', 'Phone', 'Email', 'Campaign Type',
         'Bootcamp Title', 'Bootcamp Date', 'Priority', 'Assigned Agent',
         'Final Status', 'Total Attempts (Calls)', 'Last Called At', 'Contacted By Agent',
         'Original Upload Amount', 'Original Payment Status', 'Original Payment Mode', 'Original Coupon Code',
@@ -758,6 +798,7 @@ def admin_export_report():
         lead_row = [
             lead.get('id'),
             lead.get('lead_name') or '',
+            format_to_ist(last_called_at),
             lead.get('contact_no') or '',
             lead.get('email') or '',
             lead.get('campaign_type') or '',
@@ -819,7 +860,8 @@ def admin_export_report():
         cw.writerow(lead_row + attempt_cols)
         
     response = Response(si.getvalue(), mimetype='text/csv')
-    response.headers['Content-Disposition'] = 'attachment; filename=tfu_detailed_report.csv'
+    filename = f'tfu_report_{filter_label}_{now_ist.strftime("%Y%m%d")}.csv'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
     return response
 
 
