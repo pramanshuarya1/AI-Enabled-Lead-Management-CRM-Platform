@@ -11,19 +11,19 @@ document.addEventListener('DOMContentLoaded', function () {
   if (fuDateInput) {
     const today = new Date();
     const pad = n => String(n).padStart(2, '0');
-    const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+    const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
     fuDateInput.min = todayStr;
   }
 
   // ── Connection Toggle ──────────────────────────────────────
   const connYes = document.getElementById('conn_yes');
-  const connNo  = document.getElementById('conn_no');
-  const connectedSection    = document.getElementById('connectedSection');
+  const connNo = document.getElementById('conn_no');
+  const connectedSection = document.getElementById('connectedSection');
   const notConnectedSection = document.getElementById('notConnectedSection');
 
   function applyConnectionToggle() {
     const isConnected = connYes && connYes.checked;
-    if (connectedSection)    connectedSection.classList.toggle('hidden', !isConnected);
+    if (connectedSection) connectedSection.classList.toggle('hidden', !isConnected);
     if (notConnectedSection) notConnectedSection.classList.toggle('hidden', isConnected);
 
     // Clear irrelevant required fields
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   if (connYes) connYes.addEventListener('change', applyConnectionToggle);
-  if (connNo)  connNo.addEventListener('change',  applyConnectionToggle);
+  if (connNo) connNo.addEventListener('change', applyConnectionToggle);
   applyConnectionToggle(); // Initial state
 
   // ── Call Status → Sub-sections ────────────────────────────
@@ -42,16 +42,16 @@ document.addEventListener('DOMContentLoaded', function () {
   if (callStatus) {
     callStatus.addEventListener('change', function () {
       const val = this.value;
-      toggleSection('followUpSection',  val === 'follow_up' || val === 'call_back_later' || val === 'need_more_detail');
+      toggleSection('followUpSection', val === 'follow_up' || val === 'call_back_later' || val === 'need_more_detail');
       toggleSection('convertedSection', val === 'converted');
     });
   }
 
   // ── Amount Summary Live Calculator ────────────────────────
-  const priceField    = document.getElementById('bootcamp_price');
+  const priceField = document.getElementById('bootcamp_price');
   const discountField = document.getElementById('discount_amount');
-  const tokenField    = document.getElementById('token_amount');
-  const totalField    = document.getElementById('amount_paid');
+  const tokenField = document.getElementById('token_amount');
+  const totalField = document.getElementById('amount_paid');
 
   function fmt(val) {
     const n = parseFloat(val) || 0;
@@ -59,30 +59,30 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function updateSummary() {
-    const price    = parseFloat(priceField?.value)    || 0;
+    const price = parseFloat(priceField?.value) || 0;
     const discount = parseFloat(discountField?.value) || 0;
-    const token    = parseFloat(tokenField?.value)    || 0;
+    const token = parseFloat(tokenField?.value) || 0;
 
     const netPrice = Math.max(0, price - discount);   // after discount
     // ── Total Paid logic ─────────────────────────────────────
     // If token > 0  → partial payment, total paid = token amount
     // If token == 0 → full payment,    total paid = price − discount
     const totalPaid = token > 0 ? token : netPrice;
-    const balance   = Math.max(0, netPrice - token);
+    const balance = Math.max(0, netPrice - token);
 
     // Update summary widget
-    const sumPrice    = document.getElementById('sumPrice');
+    const sumPrice = document.getElementById('sumPrice');
     const sumDiscount = document.getElementById('sumDiscount');
-    const sumToken    = document.getElementById('sumToken');
-    const sumTotal    = document.getElementById('sumTotal');
-    const sumBalance  = document.getElementById('sumBalance');
+    const sumToken = document.getElementById('sumToken');
+    const sumTotal = document.getElementById('sumTotal');
+    const sumBalance = document.getElementById('sumBalance');
 
-    if (sumPrice)    sumPrice.textContent    = fmt(price);
+    if (sumPrice) sumPrice.textContent = fmt(price);
     if (sumDiscount) sumDiscount.textContent = discount > 0 ? '- ' + fmt(discount) : fmt(0);
-    if (sumToken)    sumToken.textContent    = token > 0 ? fmt(token) : fmt(0);
-    if (sumTotal)    sumTotal.textContent    = fmt(totalPaid);
+    if (sumToken) sumToken.textContent = token > 0 ? fmt(token) : fmt(0);
+    if (sumTotal) sumTotal.textContent = fmt(totalPaid);
     if (sumBalance && token > 0) {
-      sumBalance.textContent  = fmt(balance);
+      sumBalance.textContent = fmt(balance);
       sumBalance.closest?.('.sum-balance-row')?.style.setProperty('display', '');
     } else if (sumBalance) {
       sumBalance.closest?.('.sum-balance-row')?.style.setProperty('display', 'none');
@@ -100,9 +100,9 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Always recalculate when any source field changes (no manual lock)
-  if (priceField)    priceField.addEventListener('input',    updateSummary);
+  if (priceField) priceField.addEventListener('input', updateSummary);
   if (discountField) discountField.addEventListener('input', updateSummary);
-  if (tokenField)    tokenField.addEventListener('input',    updateSummary);
+  if (tokenField) tokenField.addEventListener('input', updateSummary);
 
   // Run once on load to populate from existing values (e.g. pre-filled bootcamp price)
   updateSummary();
@@ -139,17 +139,17 @@ document.addEventListener('DOMContentLoaded', function () {
             showFormError('Please set a follow-up date');
             return;
           }
-          
+
           const today = new Date();
           const pad = n => String(n).padStart(2, '0');
-          const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
-          
+          const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
           if (fuDate < todayStr) {
             e.preventDefault();
             showFormError('Follow-up date cannot be in the past');
             return;
           }
-          
+
           if (fuDate === todayStr && fuTime) {
             const currentTimeStr = `${pad(today.getHours())}:${pad(today.getMinutes())}`;
             if (fuTime < currentTimeStr) {
@@ -230,6 +230,11 @@ document.addEventListener('DOMContentLoaded', function () {
       ],
       cut_the_call: [
         { value: 'Call Dropped', text: 'Call Dropped' }
+      ],
+      not_attended_class: [
+        { value: 'Join Late', text: 'Join Late' },
+        { value: 'Want to see again', text: 'Want to see again' },
+        { value: 'Drop in between', text: 'Drop in between' }
       ]
     };
 
