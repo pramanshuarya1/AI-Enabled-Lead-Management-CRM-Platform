@@ -402,11 +402,11 @@ def admin_dashboard():
         from concurrent.futures import ThreadPoolExecutor
         campaign_types = ['atpitch_sia','atpitch_sta','atpitch_others','upsell','fp_l1']
 
-        q_total = supabase_admin.table('leads').select('id', count='exact')
-        q_converted = supabase_admin.table('leads').select('id', count='exact').eq('final_status', 'Converted')
-        q_follow_up = supabase_admin.table('leads').select('id', count='exact').in_('final_status', FOLLOW_UP_STATUSES)
-        q_attempted = supabase_admin.table('call_attempts').select('id', count='exact')
-        q_connected = supabase_admin.table('call_attempts').select('id', count='exact').eq('connected', True)
+        q_total = supabase_admin.table('leads').select('id', count='exact').limit(0)
+        q_converted = supabase_admin.table('leads').select('id', count='exact').eq('final_status', 'Converted').limit(0)
+        q_follow_up = supabase_admin.table('leads').select('id', count='exact').in_('final_status', FOLLOW_UP_STATUSES).limit(0)
+        q_attempted = supabase_admin.table('call_attempts').select('id', count='exact').limit(0)
+        q_connected = supabase_admin.table('call_attempts').select('id', count='exact').eq('connected', True).limit(0)
 
         if start_utc and end_utc:
             q_total = q_total.gte('created_at', start_utc).lte('created_at', end_utc)
@@ -422,7 +422,7 @@ def admin_dashboard():
             'connected_calls': q_connected,
         }
         for ct in campaign_types:
-            q_camp = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct)
+            q_camp = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct).limit(0)
             if start_utc and end_utc:
                 q_camp = q_camp.gte('created_at', start_utc).lte('created_at', end_utc)
             queries[f'camp_{ct}'] = q_camp
@@ -594,7 +594,7 @@ def admin_dashboard():
 
     # ── Query 2: call count in period ────────────────────────────────────────
     try:
-        tc_query = supabase_admin.table('call_attempts').select('id', count='exact')
+        tc_query = supabase_admin.table('call_attempts').select('id', count='exact').limit(0)
         if start_utc and end_utc:
             tc_query = tc_query.gte('called_at', start_utc).lte('called_at', end_utc)
         else:
@@ -1068,7 +1068,7 @@ def admin_leads():
         leads = result.data or []
 
         # Count
-        count_query = supabase_admin.table('leads').select('id', count='exact')
+        count_query = supabase_admin.table('leads').select('id', count='exact').limit(0)
         if campaign_type:
             count_query = count_query.eq('campaign_type', campaign_type)
         if status:
@@ -1446,15 +1446,15 @@ def agent_dashboard():
         queries = {}
         for ct in _ctypes:
             # Total
-            q_tot = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct)
+            q_tot = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct).limit(0)
             queries[f'{ct}_total'] = q_tot
 
             # Pending
-            q_pend = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct).eq('final_status', 'Pending')
+            q_pend = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct).eq('final_status', 'Pending').limit(0)
             queries[f'{ct}_pending'] = q_pend
 
             # Follow Up
-            q_fu = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct).in_('final_status', FOLLOW_UP_STATUSES)
+            q_fu = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct).in_('final_status', FOLLOW_UP_STATUSES).limit(0)
             queries[f'{ct}_fu'] = q_fu
 
         def get_count_val(q):
