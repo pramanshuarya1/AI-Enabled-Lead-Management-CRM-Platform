@@ -1526,7 +1526,7 @@ def agent_campaign(campaign_type):
     try:
         query = supabase_admin.table('leads').select('*').eq('campaign_type', campaign_type)
         if not is_admin:
-            query = query.or_(f"and(agent_name.ilike.%{agent_name}%,or(final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
+            query = query.or_(f"final_status.eq.Pending,final_status.eq.\"Not Connected\",final_status.eq.\"Not Attended Class\",and(agent_name.ilike.%{agent_name}%,or(contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
         if status_filter:
             if status_filter == 'Follow Up':
                 query = query.in_('final_status', FOLLOW_UP_STATUSES)
@@ -1733,6 +1733,23 @@ def agent_call_log(lead_id):
                     .execute()
             except Exception as e:
                 app.logger.error(f"Error updating contacted_by on lead: {e}")
+
+            # Auto-share: update agent_name to include ALL active agents
+            # so the lead becomes visible to all teammates after any call (connected or not)
+            try:
+                active_resp = supabase_admin.table('profiles')\
+                    .select('name')\
+                    .eq('role', 'agent')\
+                    .eq('is_active', True)\
+                    .execute()
+                all_active = [a['name'].strip() for a in (active_resp.data or []) if a.get('name')]
+                if all_active:
+                    supabase_admin.table('leads')\
+                        .update({'agent_name': ', '.join(all_active)})\
+                        .eq('id', lead_id)\
+                        .execute()
+            except Exception as e:
+                app.logger.error(f"Error auto-sharing lead to all agents: {e}")
 
             # Optional Lead Transfer/Reassignment
             transfer_agent = request.form.get('transfer_agent', '').strip()
@@ -2011,7 +2028,7 @@ def agent_leads_list():
             query = supabase_admin.table('leads').select('*')
             if not is_admin:
                 query = query.in_('campaign_type', allowed)
-                query = query.or_(f"and(agent_name.ilike.%{agent_name}%,or(final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
+                query = query.or_(f"final_status.eq.Pending,final_status.eq.\"Not Connected\",final_status.eq.\"Not Attended Class\",and(agent_name.ilike.%{agent_name}%,or(contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
 
         if status_filter:
             if status_filter == 'Follow Up':
@@ -2104,7 +2121,7 @@ def api_search_leads():
                 query = query.eq('campaign_type', campaign)
             else:
                 query = query.in_('campaign_type', allowed)
-            query = query.or_(f"and(agent_name.ilike.%{user['name']}%,or(final_status.eq.Pending,contacted_by.is.null,contacted_by.ilike.{user['name']})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
+            query = query.or_(f"final_status.eq.Pending,final_status.eq.\"Not Connected\",final_status.eq.\"Not Attended Class\",and(agent_name.ilike.%{user['name']}%,or(contacted_by.is.null,contacted_by.ilike.{user['name']})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
         else:
             if campaign:
                 query = query.eq('campaign_type', campaign)
