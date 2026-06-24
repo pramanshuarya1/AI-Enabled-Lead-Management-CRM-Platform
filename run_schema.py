@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS public.call_attempts (
     call_status TEXT CHECK (call_status IN (
         'follow_up', 'converted', 'already_enrolled',
         'need_more_detail', 'not_interested', 'discarded',
-        'call_back_later', 'cut_the_call'
+        'call_back_later', 'cut_the_call', 'not_attended_class'
     )),
     disposition TEXT,
     comments TEXT,
@@ -187,14 +187,15 @@ BEGIN
                     WHEN NEW.not_connected_reason = 'call_failure'      THEN 'Call Failure'
                     ELSE 'Not Connected'
                 END
-            WHEN NEW.call_status = 'converted'        THEN 'Converted'
-            WHEN NEW.call_status = 'already_enrolled' THEN 'Already Enrolled'
-            WHEN NEW.call_status = 'not_interested'   THEN 'Not Interested'
-            WHEN NEW.call_status = 'discarded'        THEN 'Discarded'
-            WHEN NEW.call_status = 'follow_up'        THEN 'Follow Up'
-            WHEN NEW.call_status = 'call_back_later'   THEN 'Call Back Later'
-            WHEN NEW.call_status = 'need_more_detail'  THEN 'Need More Detail'
-            WHEN NEW.call_status = 'cut_the_call'     THEN 'Cut the Call'
+            WHEN NEW.call_status = 'converted'          THEN 'Converted'
+            WHEN NEW.call_status = 'already_enrolled'   THEN 'Already Enrolled'
+            WHEN NEW.call_status = 'not_interested'     THEN 'Not Interested'
+            WHEN NEW.call_status = 'discarded'          THEN 'Discarded'
+            WHEN NEW.call_status = 'follow_up'          THEN 'Follow Up'
+            WHEN NEW.call_status = 'call_back_later'    THEN 'Call Back Later'
+            WHEN NEW.call_status = 'need_more_detail'   THEN 'Need More Detail'
+            WHEN NEW.call_status = 'cut_the_call'       THEN 'Cut the Call'
+            WHEN NEW.call_status = 'not_attended_class' THEN 'Not Attended Class'
             ELSE final_status
         END,
         updated_at = NOW()
