@@ -332,6 +332,7 @@ def admin_dashboard():
     date_filter = request.args.get('date_filter', 'all')
     start_date_str = request.args.get('start_date', '')
     end_date_str = request.args.get('end_date', '')
+    campaign_filter = request.args.get('campaign_filter', '')
 
     calls_filter = request.args.get('calls_filter', '')
     if not calls_filter:
@@ -397,16 +398,25 @@ def admin_dashboard():
     detail = {'converted_leads': [], 'follow_up_leads': [], 'today_call_logs': []}
     recent_uploads = []
 
-    # ── Query 1: counts in parallel using thread pool ─────────────────────
+    # ── counts, lists, and metadata queries in parallel using ThreadPoolExecutor ─────────────────────
     try:
         from concurrent.futures import ThreadPoolExecutor
         campaign_types = ['atpitch_sia','atpitch_sta','atpitch_others','upsell','fp_l1']
 
+        # 1. Total, Converted, and Follow up count queries
         q_total = supabase_admin.table('leads').select('id', count='exact').limit(0)
         q_converted = supabase_admin.table('leads').select('id', count='exact').eq('final_status', 'Converted').limit(0)
         q_follow_up = supabase_admin.table('leads').select('id', count='exact').in_('final_status', FOLLOW_UP_STATUSES).limit(0)
-        q_attempted = supabase_admin.table('call_attempts').select('id', count='exact').limit(0)
-        q_connected = supabase_admin.table('call_attempts').select('id', count='exact').eq('connected', True).limit(0)
+
+        if campaign_filter:
+            q_total = q_total.eq('campaign_type', campaign_filter)
+            q_converted = q_converted.eq('campaign_type', campaign_filter)
+            q_follow_up = q_follow_up.eq('campaign_type', campaign_filter)
+            q_attempted = supabase_admin.table('call_attempts').select('id, leads!inner(campaign_type)', count='exact').limit(0).eq('leads.campaign_type', campaign_filter)
+            q_connected = supabase_admin.table('call_attempts').select('id, leads!inner(campaign_type)', count='exact').eq('connected', True).limit(0).eq('leads.campaign_type', campaign_filter)
+        else:
+            q_attempted = supabase_admin.table('call_attempts').select('id', count='exact').limit(0)
+            q_connected = supabase_admin.table('call_attempts').select('id', count='exact').eq('connected', True).limit(0)
 
         if start_utc and end_utc:
             q_total = q_total.gte('created_at', start_utc).lte('created_at', end_utc)
@@ -414,187 +424,45 @@ def admin_dashboard():
             q_attempted = q_attempted.gte('called_at', start_utc).lte('called_at', end_utc)
             q_connected = q_connected.gte('called_at', start_utc).lte('called_at', end_utc)
 
-        queries = {
-            'total': q_total,
-            'converted': q_converted,
-            'follow_up': q_follow_up,
-            'attempted_calls': q_attempted,
-            'connected_calls': q_connected,
-        }
-        for ct in campaign_types:
-            q_camp = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ct).limit(0)
-            if start_utc and end_utc:
-                q_camp = q_camp.gte('created_at', start_utc).lte('created_at', end_utc)
-            queries[f'camp_{ct}'] = q_camp
-
-        def get_count_val(q):
-            return q.execute().count or 0
-
-        counts = {}
-        try:
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                future_to_key = {executor.submit(get_count_val, q): key for key, q in queries.items()}
-                for future in future_to_key:
-                    key = future_to_key[future]
-                    counts[key] = future.result()
-        except Exception as tpe_err:
-            app.logger.warning(f"ThreadPoolExecutor failed in admin_dashboard, falling back to sequential execution: {tpe_err}")
-            counts = {}
-            for key, q in queries.items():
-                try:
-                    counts[key] = get_count_val(q)
-                except Exception as seq_err:
-                    counts[key] = 0
-                    app.logger.error(f"Sequential fallback query failed for key {key}: {seq_err}")
-
-        total = counts.get('total', 0)
-        n_conv = counts.get('converted', 0)
-        attempted_calls = counts.get('attempted_calls', 0)
-        connected_calls = counts.get('connected_calls', 0)
-        campaign_stats = {ct: counts.get(f'camp_{ct}', 0) for ct in campaign_types}
-
-        # Query to compute total revenue
-        revenue_query = supabase_admin.table('call_attempts').select('amount_paid').eq('call_status', 'converted')
+        # 2. Revenue Query
+        if campaign_filter:
+            revenue_query = supabase_admin.table('call_attempts').select('amount_paid, leads!inner(campaign_type)').eq('call_status', 'converted').eq('leads.campaign_type', campaign_filter)
+        else:
+            revenue_query = supabase_admin.table('call_attempts').select('amount_paid').eq('call_status', 'converted')
         if start_utc and end_utc:
             revenue_query = revenue_query.gte('called_at', start_utc).lte('called_at', end_utc)
-        revenue_resp = revenue_query.execute()
-        revenue_data = revenue_resp.data or []
-        total_revenue = sum(float(row.get('amount_paid') or 0) for row in revenue_data)
 
-        # ── Query 2: Retrieve detail lists ────────────────────────────────────
-        # Fetch Converted Leads (paginated)
+        # 3. Converted Leads List Query (paginated)
         offset_conv = (page_conv - 1) * 20
         query_conv = supabase_admin.table('leads') \
             .select('id,lead_name,contact_no,bootcamp_title,campaign_type,'
                     'priority,agent_name,final_status,last_call_date,updated_at,contacted_by,'
                     'call_attempts(call_status,amount_paid)') \
             .eq('final_status', 'Converted')
-
+        if campaign_filter:
+            query_conv = query_conv.eq('campaign_type', campaign_filter)
         if start_utc and end_utc:
             query_conv = query_conv.gte('last_call_date', start_utc).lte('last_call_date', end_utc)
-
         if sort_conv == 'asc':
             query_conv = query_conv.order('last_call_date', desc=False, nullsfirst=True)
         else:
             query_conv = query_conv.order('last_call_date', desc=True, nullsfirst=False)
+        query_conv = query_conv.range(offset_conv, offset_conv + 19)
 
-        converted_leads_resp = query_conv.range(offset_conv, offset_conv + 19).execute()
-        converted_leads_raw = converted_leads_resp.data or []
-
-        # Attach amount_paid from the converted call_attempt to each lead
-        converted_leads = []
-        for lead in converted_leads_raw:
-            atts = lead.pop('call_attempts', []) or []
-            paid = next((a.get('amount_paid') for a in atts if a.get('call_status') == 'converted' and a.get('amount_paid')), None)
-            lead['amount_paid'] = paid
-            converted_leads.append(lead)
-
-        # Fetch up to 1000 follow-up leads (to search for overdue status)
-        follow_up_all_resp = supabase_admin.table('leads') \
+        # 4. Follow Up Leads Query (limit 1000)
+        follow_up_all_query = supabase_admin.table('leads') \
             .select('id,lead_name,contact_no,bootcamp_title,campaign_type,'
                     'priority,agent_name,final_status,last_call_date,updated_at,contacted_by') \
-            .in_('final_status', FOLLOW_UP_STATUSES) \
-            .limit(1000) \
-            .execute()
-        follow_up_all = follow_up_all_resp.data or []
+            .in_('final_status', FOLLOW_UP_STATUSES)
+        if campaign_filter:
+            follow_up_all_query = follow_up_all_query.eq('campaign_type', campaign_filter)
+        follow_up_all_query = follow_up_all_query.limit(1000)
 
-        # Calculate overdue follow-ups
-        attempts_resp = supabase_admin.table('call_attempts')\
-            .select('lead_id,follow_up_date,follow_up_time')\
-            .not_.is_('follow_up_date', 'null')\
-            .order('called_at', desc=True)\
-            .execute()
-        attempts_data = attempts_resp.data or []
-
-        followup_info = {}
-        for att in attempts_data:
-            l_id = att.get('lead_id')
-            if l_id not in followup_info:
-                followup_info[l_id] = {
-                    'date': att.get('follow_up_date'),
-                    'time': att.get('follow_up_time')
-                }
-
-        # Filter follow-ups and overdue leads based on date_filter
-        filtered_follow_up_all = []
-        overdue_leads = []
-
-        for lead in follow_up_all:
-            info = followup_info.get(lead['id'], {})
-            lead_date = info.get('date') or lead.get('fp_date')
-            lead_time = info.get('time') or lead.get('fp_time')
-            lead['follow_up_date'] = lead_date
-            lead['follow_up_time'] = lead_time
-
-            if date_filter != 'all':
-                if not lead_date:
-                    continue
-                try:
-                    if not (start_day <= date.fromisoformat(lead_date) <= end_day):
-                        continue
-                except Exception:
-                    continue
-
-            filtered_follow_up_all.append(lead)
-
-            if lead_date:
-                try:
-                    t_str = lead_time if lead_time else "00:00:00"
-                    if len(t_str) == 5:
-                        t_str = f"{t_str}:00"
-                    scheduled_dt = datetime.strptime(f"{lead_date} {t_str}", "%Y-%m-%d %H:%M:%S")
-                    scheduled_dt = scheduled_dt.replace(tzinfo=ist)
-                    if now_local > scheduled_dt + py_timedelta(hours=24):
-                        diff = now_local - scheduled_dt
-                        lead['hours_overdue'] = int(diff.total_seconds() // 3600)
-                        overdue_leads.append(lead)
-                except Exception as ex:
-                    app.logger.warning(f"Error parsing follow_up_date/time for lead {lead['id']}: {ex}")
-
-        overdue_leads = sorted(overdue_leads, key=lambda x: x.get('hours_overdue', 0), reverse=True)
-
-        if date_filter != 'all':
-            n_fu = len(filtered_follow_up_all)
+        # 5. Call Count Query
+        if campaign_filter:
+            tc_query = supabase_admin.table('call_attempts').select('id, leads!inner(campaign_type)', count='exact').limit(0).eq('leads.campaign_type', campaign_filter)
         else:
-            n_fu = counts.get('follow_up', 0)
-
-        stats.update({
-            'total_leads':       total,
-            'converted':         n_conv,
-            'follow_up':         n_fu,
-            'overdue_followups': len(overdue_leads),
-            'campaign_stats':    campaign_stats,
-            'attempted_calls':   attempted_calls,
-            'connected_calls':   connected_calls,
-            'revenue':           total_revenue,
-        })
-
-        # Paginate follow-ups list
-        follow_up_all_sorted = sorted(filtered_follow_up_all,
-                                      key=lambda x: x.get('last_call_date') or '', reverse=True)
-        offset_fu = (page_fu - 1) * 20
-        follow_up_leads = follow_up_all_sorted[offset_fu : offset_fu + 20]
-
-        # Paginate overdue list
-        offset_overdue = (page_overdue - 1) * 20
-        overdue_leads_paginated = overdue_leads[offset_overdue : offset_overdue + 20]
-
-        # Determine has_next flags for follow-up and overdue
-        has_next_fu = len(follow_up_all_sorted) > offset_fu + 20
-        has_next_overdue = len(overdue_leads) > offset_overdue + 20
-
-        detail['converted_leads'] = converted_leads
-        detail['follow_up_leads'] = follow_up_leads
-        detail['overdue_followups'] = overdue_leads_paginated
-
-    except Exception as e:
-        flash(f'Could not load leads: {e}', 'error')
-        has_next_fu = False
-        has_next_overdue = False
-
-    # ── Query 2: call count in period ────────────────────────────────────────
-    try:
-        tc_query = supabase_admin.table('call_attempts').select('id', count='exact').limit(0)
+            tc_query = supabase_admin.table('call_attempts').select('id', count='exact').limit(0)
         if start_utc and end_utc:
             tc_query = tc_query.gte('called_at', start_utc).lte('called_at', end_utc)
         else:
@@ -603,18 +471,16 @@ def admin_dashboard():
             today_start_utc = today_start_dt.astimezone(timezone.utc).isoformat()
             today_end_utc = today_end_dt.astimezone(timezone.utc).isoformat()
             tc_query = tc_query.gte('called_at', today_start_utc).lte('called_at', today_end_utc)
-        tc = tc_query.execute()
-        stats['today_calls'] = tc.count or 0
-    except Exception:
-        stats['today_calls'] = 0
 
-    # ── Query 3: call detail in period (for drilldown) ──────────────────────
-    try:
+        # 6. Call Log Details Query (paginated)
         offset_calls = (page_calls - 1) * 20
-        tcl_query = supabase_admin.table('call_attempts') \
-            .select('id,called_at,call_status,agent_name,connected,leads(lead_name,contact_no,bootcamp_title,campaign_type)')
-        
-        # Apply date filtering based on active range and filter type
+        if campaign_filter:
+            tcl_query = supabase_admin.table('call_attempts') \
+                .select('id,called_at,call_status,agent_name,connected,leads!inner(lead_name,contact_no,bootcamp_title,campaign_type)') \
+                .eq('leads.campaign_type', campaign_filter)
+        else:
+            tcl_query = supabase_admin.table('call_attempts') \
+                .select('id,called_at,call_status,agent_name,connected,leads(lead_name,contact_no,bootcamp_title,campaign_type)')
         calls_start_utc = start_utc
         calls_end_utc = end_utc
         if date_filter == 'all' and calls_filter == 'today':
@@ -622,39 +488,170 @@ def admin_dashboard():
             today_end_dt = datetime.combine(today_ist, datetime.max.time()).replace(tzinfo=ist)
             calls_start_utc = today_start_dt.astimezone(timezone.utc).isoformat()
             calls_end_utc = today_end_dt.astimezone(timezone.utc).isoformat()
-            
         if calls_start_utc and calls_end_utc:
             tcl_query = tcl_query.gte('called_at', calls_start_utc).lte('called_at', calls_end_utc)
-            
-        # Apply connection filter
         if calls_filter == 'connected':
             tcl_query = tcl_query.eq('connected', True)
         elif calls_filter == 'unconnected':
             tcl_query = tcl_query.eq('connected', False)
+        tcl_query = tcl_query.order('called_at', desc=True).range(offset_calls, offset_calls + 19)
 
-        tcl = tcl_query.order('called_at', desc=True) \
-            .range(offset_calls, offset_calls + 19).execute()
-        detail['today_call_logs'] = tcl.data or []
-        has_next_calls = len(detail['today_call_logs']) == 20
-    except Exception as e:
-        app.logger.error(f"Error querying call logs: {e}")
-        detail['today_call_logs'] = []
-        has_next_calls = False
+        # 7. Recent Uploads Query
+        ru_query = supabase_admin.table('upload_logs').select('*').order('created_at', desc=True).limit(10)
 
-    # ── Query 4: recent uploads ────────────────────────────────────────────
-    try:
-        ru = supabase_admin.table('upload_logs') \
-            .select('*').order('created_at', desc=True).limit(10).execute()
-        recent_uploads = ru.data or []
-    except Exception:
-        recent_uploads = []
+        # 8. Active Agents Query
+        agents_query = supabase_admin.table('profiles').select('id,name').eq('role', 'agent').eq('is_active', True)
 
-    # ── Query 5: active agents list (for dashboard assignment) ───────────────
-    try:
-        agents_resp = supabase_admin.table('profiles').select('id,name').eq('role', 'agent').eq('is_active', True).execute()
-        agents = agents_resp.data or []
-    except Exception:
-        agents = []
+        # Build list of callable tasks
+        tasks = {
+            'count_total': lambda: q_total.execute().count or 0,
+            'count_converted': lambda: q_converted.execute().count or 0,
+            'count_follow_up': lambda: q_follow_up.execute().count or 0,
+            'count_attempted_calls': lambda: q_attempted.execute().count or 0,
+            'count_connected_calls': lambda: q_connected.execute().count or 0,
+            'revenue': lambda: revenue_query.execute().data or [],
+            'query_conv': lambda: query_conv.execute().data or [],
+            'follow_up_all': lambda: follow_up_all_query.execute().data or [],
+            'tc_count': lambda: tc_query.execute().count or 0,
+            'tcl_data': lambda: tcl_query.execute().data or [],
+            'recent_uploads': lambda: ru_query.execute().data or [],
+            'agents': lambda: agents_query.execute().data or []
+        }
+
+        # Add campaign-specific count tasks
+        for ct in campaign_types:
+            def make_camp_task(ctype):
+                q_camp = supabase_admin.table('leads').select('id', count='exact').eq('campaign_type', ctype).limit(0)
+                if start_utc and end_utc:
+                    q_camp = q_camp.gte('created_at', start_utc).lte('created_at', end_utc)
+                return lambda: q_camp.execute().count or 0
+            tasks[f'camp_{ct}'] = make_camp_task(ct)
+
+        results = {}
+        # Execute all tasks in parallel using a ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_key = {executor.submit(fn): key for key, fn in tasks.items()}
+            for future in future_to_key:
+                key = future_to_key[future]
+                results[key] = future.result()
+
+    except Exception as tpe_err:
+        app.logger.warning(f"ThreadPoolExecutor failed in admin_dashboard, falling back to sequential execution: {tpe_err}")
+        results = {}
+        for key, fn in tasks.items():
+            try:
+                results[key] = fn()
+            except Exception as seq_err:
+                app.logger.error(f"Sequential fallback query failed for key {key}: {seq_err}")
+                results[key] = [] if key in ['revenue', 'query_conv', 'follow_up_all', 'tcl_data', 'recent_uploads', 'agents'] else 0
+
+    total = results.get('count_total', 0)
+    n_conv = results.get('count_converted', 0)
+    attempted_calls = results.get('count_attempted_calls', 0)
+    connected_calls = results.get('count_connected_calls', 0)
+    stats['total_leads'] = total
+    stats['converted'] = n_conv
+    stats['follow_up'] = results.get('count_follow_up', 0)
+    stats['attempted_calls'] = attempted_calls
+    stats['connected_calls'] = connected_calls
+    stats['today_calls'] = results.get('tc_count', 0)
+    stats['campaign_stats'] = {ct: results.get(f'camp_{ct}', 0) for ct in campaign_types}
+
+    revenue_data = results.get('revenue', [])
+    total_revenue = sum(float(row.get('amount_paid') or 0) for row in revenue_data)
+    stats['revenue'] = total_revenue
+
+    converted_leads_raw = results.get('query_conv', [])
+    converted_leads = []
+    for lead in converted_leads_raw:
+        atts = lead.pop('call_attempts', []) or []
+        paid = next((a.get('amount_paid') for a in atts if a.get('call_status') == 'converted' and a.get('amount_paid')), None)
+        lead['amount_paid'] = paid
+        converted_leads.append(lead)
+
+    follow_up_all = results.get('follow_up_all', [])
+
+    # Calculate overdue follow-ups (targeted optimization: fetch only follow-up attempts of these active leads)
+    attempts_data = []
+    if follow_up_all:
+        try:
+            lead_ids = [l['id'] for l in follow_up_all]
+            for i in range(0, len(lead_ids), 500):
+                chunk = lead_ids[i:i+500]
+                chunk_res = supabase_admin.table('call_attempts')\
+                    .select('lead_id,follow_up_date,follow_up_time')\
+                    .not_.is_('follow_up_date', 'null')\
+                    .in_('lead_id', chunk)\
+                    .order('called_at', desc=True)\
+                    .execute()
+                attempts_data.extend(chunk_res.data or [])
+        except Exception as e_att:
+            app.logger.error(f"Error querying overdue attempts: {e_att}")
+
+    followup_info = {}
+    for att in attempts_data:
+        l_id = att.get('lead_id')
+        if l_id not in followup_info:
+            followup_info[l_id] = {
+                'date': att.get('follow_up_date'),
+                'time': att.get('follow_up_time')
+            }
+
+    filtered_follow_up_all = []
+    overdue_leads = []
+
+    for lead in follow_up_all:
+        info = followup_info.get(lead['id'], {})
+        lead_date = info.get('date') or lead.get('fp_date')
+        lead_time = info.get('time') or lead.get('fp_time')
+        lead['follow_up_date'] = lead_date
+        lead['follow_up_time'] = lead_time
+
+        if date_filter != 'all':
+            if not lead_date:
+                continue
+            try:
+                if not (start_day <= date.fromisoformat(lead_date) <= end_day):
+                    continue
+            except Exception:
+                continue
+
+        filtered_follow_up_all.append(lead)
+
+        if lead_date:
+            try:
+                t_str = lead_time if lead_time else "00:00:00"
+                if len(t_str) == 5:
+                    t_str = f"{t_str}:00"
+                scheduled_dt = datetime.strptime(f"{lead_date} {t_str}", "%Y-%m-%d %H:%M:%S")
+                scheduled_dt = scheduled_dt.replace(tzinfo=ist)
+                if now_local > scheduled_dt + py_timedelta(hours=24):
+                    diff = now_local - scheduled_dt
+                    lead['hours_overdue'] = int(diff.total_seconds() // 3600)
+                    overdue_leads.append(lead)
+            except Exception as ex:
+                app.logger.warning(f"Error parsing follow_up_date/time for lead {lead['id']}: {ex}")
+
+    follow_up_all_sorted = sorted(filtered_follow_up_all,
+                                  key=lambda x: x.get('last_call_date') or '', reverse=True)
+    offset_fu = (page_fu - 1) * 20
+    follow_up_leads = follow_up_all_sorted[offset_fu : offset_fu + 20]
+
+    offset_overdue = (page_overdue - 1) * 20
+    overdue_leads_paginated = overdue_leads[offset_overdue : offset_overdue + 20]
+
+    has_next_fu = len(follow_up_all_sorted) > offset_fu + 20
+    has_next_overdue = len(overdue_leads) > offset_overdue + 20
+
+    detail['converted_leads'] = converted_leads
+    detail['follow_up_leads'] = follow_up_leads
+    detail['overdue_followups'] = overdue_leads_paginated
+
+    detail['today_call_logs'] = results.get('tcl_data', [])
+    has_next_calls = len(detail['today_call_logs']) == 20
+
+    recent_uploads = results.get('recent_uploads', [])
+    agents = results.get('agents', [])
 
     has_next_conv = len(converted_leads) == 20
 
@@ -676,7 +673,8 @@ def admin_dashboard():
                            date_filter=date_filter,
                            start_date=start_date_str or today_ist.isoformat(),
                            end_date=end_date_str or today_ist.isoformat(),
-                           calls_filter=calls_filter)
+                           calls_filter=calls_filter,
+                           campaign_filter=campaign_filter)
 
 
 @app.route('/admin/dashboard/export_csv')
