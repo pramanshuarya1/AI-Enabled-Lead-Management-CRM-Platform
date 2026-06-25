@@ -1526,7 +1526,7 @@ def agent_campaign(campaign_type):
     try:
         query = supabase_admin.table('leads').select('*').eq('campaign_type', campaign_type)
         if not is_admin:
-            query = query.or_(f"final_status.eq.Pending,final_status.eq.\"Not Connected\",final_status.eq.\"Not Attended Class\",final_status.eq.\"Cut the Call\",and(agent_name.ilike.%{agent_name}%,or(contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
+            query = query.or_(f"final_status.eq.Pending,final_status.eq.\"Not Connected\",final_status.eq.DNP,final_status.eq.\"Switched Off\",final_status.eq.\"Line Busy\",final_status.eq.\"Internet Issue\",final_status.eq.\"Call Failure\",final_status.eq.\"Not Attended Class\",final_status.eq.\"Cut the Call\",and(agent_name.ilike.%{agent_name}%,or(contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
         if status_filter:
             if status_filter == 'Follow Up':
                 query = query.in_('final_status', FOLLOW_UP_STATUSES)
@@ -2028,7 +2028,7 @@ def agent_leads_list():
             query = supabase_admin.table('leads').select('*')
             if not is_admin:
                 query = query.in_('campaign_type', allowed)
-                query = query.or_(f"final_status.eq.Pending,final_status.eq.\"Not Connected\",final_status.eq.\"Not Attended Class\",final_status.eq.\"Cut the Call\",and(agent_name.ilike.%{agent_name}%,or(contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
+                query = query.or_(f"final_status.eq.Pending,final_status.eq.\"Not Connected\",final_status.eq.DNP,final_status.eq.\"Switched Off\",final_status.eq.\"Line Busy\",final_status.eq.\"Internet Issue\",final_status.eq.\"Call Failure\",final_status.eq.\"Not Attended Class\",final_status.eq.\"Cut the Call\",and(agent_name.ilike.%{agent_name}%,or(contacted_by.is.null,contacted_by.ilike.{agent_name})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
 
         if status_filter:
             if status_filter == 'Follow Up':
@@ -2121,7 +2121,7 @@ def api_search_leads():
                 query = query.eq('campaign_type', campaign)
             else:
                 query = query.in_('campaign_type', allowed)
-            query = query.or_(f"final_status.eq.Pending,final_status.eq.\"Not Connected\",final_status.eq.\"Not Attended Class\",final_status.eq.\"Cut the Call\",and(agent_name.ilike.%{user['name']}%,or(contacted_by.is.null,contacted_by.ilike.{user['name']})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
+            query = query.or_(f"final_status.eq.Pending,final_status.eq.\"Not Connected\",final_status.eq.DNP,final_status.eq.\"Switched Off\",final_status.eq.\"Line Busy\",final_status.eq.\"Internet Issue\",final_status.eq.\"Call Failure\",final_status.eq.\"Not Attended Class\",final_status.eq.\"Cut the Call\",and(agent_name.ilike.%{user['name']}%,or(contacted_by.is.null,contacted_by.ilike.{user['name']})),final_status.eq.Converted,final_status.eq.\"Already Enrolled\",final_status.eq.Discarded")
         else:
             if campaign:
                 query = query.eq('campaign_type', campaign)
