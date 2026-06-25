@@ -334,8 +334,19 @@ venv/bin/python test_agent_lead_transfer.py
 venv/bin/python test_show_all_agents_on_entry.py
 ```
 
+---
 
+## 📜 Changelog
 
+### v2.3 (June 2026)
+* **Bug Fixes:**
+  * Fixed a bug where selecting a campaign from the admin dashboard campaign filter dropdown would auto-redirect and reset back to "All Campaigns" on page reload.
+  * Cleaned up the campaign filter UI styling (removed target emoji indicator from the select element container).
 
+### v2.2 (June 2026)
+* **Improvements & Features:**
+  * Added team-wide auto-sharing on call entry (any call attempt updates lead assignments to all active agents automatically).
+  * Made all unconnected statuses (Not Connected, DNP, Switched Off, Line Busy, Call Failure) and "Not Attended Class" visible to all agents in the campaign.
 
 ### Developed by Ankit Dahiya @2026
+
