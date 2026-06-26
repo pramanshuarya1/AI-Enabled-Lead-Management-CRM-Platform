@@ -6,9 +6,19 @@ import os
 import json
 import uuid
 import httpx
+import time
 from pathlib import Path
 from datetime import datetime, timezone
 from functools import wraps
+
+# Global cache stores to optimize request-level database lookups
+_cached_allowed_campaigns = {}
+_cached_allowed_campaigns_time = {}
+_cached_agent_stats = {}
+_cached_agent_stats_time = {}
+_cached_campaign_agents = {}
+_cached_campaign_agents_time = {}
+
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -75,15 +85,22 @@ def inject_agent_stats():
         return {}
 
     agent_name = user['name']
+    perf_filter = request.args.get('perf_filter', 'today')
+    perf_start  = request.args.get('perf_start', '')
+    perf_end    = request.args.get('perf_end', '')
+
+    # Cache logic: Check if we have valid cached stats for this agent/filter (timeout 15 seconds)
+    cache_key = (agent_name, perf_filter, perf_start, perf_end)
+    now = time.time()
+    if cache_key in _cached_agent_stats and now - _cached_agent_stats_time.get(cache_key, 0) < 15:
+        return _cached_agent_stats[cache_key]
+
     stats = {'dialed': 0, 'connected': 0, 'follow_ups': 0, 'pending': 0, 'converted': 0, 'discarded': 0}
 
     # Date filter from request (default: today)
     ist_tz = timezone(timedelta(hours=5, minutes=30))
     now_ist = datetime.now(ist_tz)
     today_ist = now_ist.date()
-    perf_filter = request.args.get('perf_filter', 'today')
-    perf_start  = request.args.get('perf_start', '')
-    perf_end    = request.args.get('perf_end', '')
 
     start_utc = None
     end_utc   = None
@@ -144,7 +161,10 @@ def inject_agent_stats():
         app.logger.error(f"Error context processor leads: {e}")
 
     stats['pending'] = max(0, stats['dialed'] - stats['connected'])
-    return {'agent_sidebar_stats': stats, 'perf_filter': perf_filter, 'perf_start': perf_start, 'perf_end': perf_end}
+    res_val = {'agent_sidebar_stats': stats, 'perf_filter': perf_filter, 'perf_start': perf_start, 'perf_end': perf_end}
+    _cached_agent_stats[cache_key] = res_val
+    _cached_agent_stats_time[cache_key] = now
+    return res_val
 
 
 # ============================================================
@@ -176,11 +196,17 @@ def get_agent_allowed_campaigns(agent_name: str) -> list:
     if 'ankit dahiya' in name_clean:
         return ['atpitch_sia', 'atpitch_sta', 'atpitch_others', 'upsell', 'fp_l1']
         
+    now = time.time()
+    if agent_name in _cached_allowed_campaigns and now - _cached_allowed_campaigns_time.get(agent_name, 0) < 300:
+        return _cached_allowed_campaigns[agent_name]
+        
     try:
         res = supabase_admin.table('profiles').select('campaigns').ilike('name', agent_name).execute()
         if res.data and res.data[0].get('campaigns'):
             camps_str = res.data[0]['campaigns']
             camps = [c.strip() for c in camps_str.split(',') if c.strip()]
+            _cached_allowed_campaigns[agent_name] = camps
+            _cached_allowed_campaigns_time[agent_name] = now
             return camps
     except Exception as e:
         app.logger.error(f"Error fetching agent campaigns from profile: {e}")
@@ -192,7 +218,47 @@ def get_agent_allowed_campaigns(agent_name: str) -> list:
         allowed.extend(['fp_l1'])
     if agent_matches_team(agent_name, UPSELL_TEAM):
         allowed.extend(['upsell', 'atpitch_others'])
+        
+    _cached_allowed_campaigns[agent_name] = allowed
+    _cached_allowed_campaigns_time[agent_name] = now
     return allowed
+
+
+def get_campaign_allowed_agents(campaign_type: str) -> list:
+    now = time.time()
+    if campaign_type in _cached_campaign_agents and now - _cached_campaign_agents_time.get(campaign_type, 0) < 60:
+        return _cached_campaign_agents[campaign_type]
+
+    try:
+        res = supabase_admin.table('profiles').select('name, campaigns').eq('role', 'agent').eq('is_active', True).execute()
+        profiles = res.data or []
+    except Exception as e:
+        app.logger.error(f"Error fetching all agents for campaign {campaign_type}: {e}")
+        profiles = []
+        
+    allowed_agents = []
+    for p in profiles:
+        name = p.get('name')
+        if not name:
+            continue
+        camps_str = p.get('campaigns') or ''
+        if camps_str:
+            camps = [c.strip() for c in camps_str.split(',') if c.strip()]
+        else:
+            camps = []
+            if agent_matches_team(name, SIA_STA_TEAM):
+                camps.extend(['atpitch_sia', 'atpitch_sta'])
+            if agent_matches_team(name, FP_TEAM):
+                camps.extend(['fp_l1'])
+            if agent_matches_team(name, UPSELL_TEAM):
+                camps.extend(['upsell', 'atpitch_others'])
+        if campaign_type in camps:
+            allowed_agents.append(name)
+            
+    sorted_agents = sorted(allowed_agents)
+    _cached_campaign_agents[campaign_type] = sorted_agents
+    _cached_campaign_agents_time[campaign_type] = now
+    return sorted_agents
 
 
 @app.context_processor
@@ -1517,6 +1583,7 @@ def agent_campaign(campaign_type):
 
     status_filter = request.args.get('status', '')
     priority_filter = request.args.get('priority', '')
+    agent_filter = request.args.get('agent_filter', '')
     search = request.args.get('search', '').strip()
     page = int(request.args.get('page', 1))
     per_page = 20
@@ -1532,6 +1599,8 @@ def agent_campaign(campaign_type):
                 query = query.eq('final_status', status_filter)
         if priority_filter:
             query = query.eq('priority', priority_filter)
+        if agent_filter:
+            query = query.ilike('contacted_by', f'%{agent_filter}%')
         if search:
             query = query.or_(f'lead_name.ilike.%{search}%,contact_no.ilike.%{search}%,bootcamp_title.ilike.%{search}%')
 
@@ -1542,6 +1611,9 @@ def agent_campaign(campaign_type):
         leads = []
         flash(f'Error: {e}', 'error')
 
+    # Fetch active agents list for this campaign
+    agents = get_campaign_allowed_agents(campaign_type)
+
     label = CAMPAIGN_LABELS.get(campaign_type, campaign_type)
     return render_template('agent/campaign.html',
                            user=user,
@@ -1550,6 +1622,8 @@ def agent_campaign(campaign_type):
                            campaign_label=label,
                            status_filter=status_filter,
                            priority_filter=priority_filter,
+                           agent_filter=agent_filter,
+                           agents=agents,
                            search=search,
                            page=page)
 

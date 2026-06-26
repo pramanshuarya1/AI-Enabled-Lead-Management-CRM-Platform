@@ -107,7 +107,7 @@
         </td>
         <td>
           {% if lead.contacted_by %}
-            <span class="agent-tag">🎧 {{ lead.contacted_by }}</span>
+            <span class="agent-tag">🎧 Called by: {{ lead.contacted_by }}</span>
           {% else %}
             <span style="color:var(--text-muted);">—</span>
           {% endif %}

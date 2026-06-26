@@ -304,9 +304,9 @@
         <td>{{ lead.priority | display_level(lead.campaign_type) }}</td>
         <td>
           {% if lead.contacted_by %}
-          <span class="agent-tag">🎧 {{ lead.contacted_by }}</span>
+            <span class="agent-tag">🎧 Called by: {{ lead.contacted_by }}</span>
           {% else %}
-          <span style="color:var(--text-muted);">—</span>
+            <span style="color:var(--text-muted);">—</span>
           {% endif %}
         </td>
         <td style="font-weight:700;color:var(--success);white-space:nowrap;">
@@ -372,9 +372,9 @@
         <td>{{ lead.priority | display_level(lead.campaign_type) }}</td>
         <td>
           {% if lead.contacted_by %}
-          <span class="agent-tag">🎧 {{ lead.contacted_by }}</span>
+            <span class="agent-tag">🎧 Called by: {{ lead.contacted_by }}</span>
           {% else %}
-          <span style="color:var(--text-muted);">—</span>
+            <span style="color:var(--text-muted);">—</span>
           {% endif %}
         </td>
         <td>
@@ -438,9 +438,9 @@
         <td>{{ lead.priority | display_level(lead.campaign_type) }}</td>
         <td>
           {% if lead.contacted_by %}
-          <span class="agent-tag">🎧 {{ lead.contacted_by }}</span>
+            <span class="agent-tag">🎧 Called by: {{ lead.contacted_by }}</span>
           {% else %}
-          <span style="color:var(--text-muted);">—</span>
+            <span style="color:var(--text-muted);">—</span>
           {% endif %}
         </td>
         <td style="color:var(--warning);font-weight:600;white-space:nowrap;">

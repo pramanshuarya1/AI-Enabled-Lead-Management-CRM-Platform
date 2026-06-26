@@ -39,6 +39,13 @@
       <option value="Discarded"        {% if status_filter=='Discarded' %}selected{% endif %}>🗑 Discarded</option>
     </select>
 
+    <select name="agent_filter" class="form-control" onchange="this.form.submit()" style="width:auto;padding:8px 32px 8px 12px;">
+      <option value="">All Agents</option>
+      {% for ag in agents %}
+        <option value="{{ ag }}" {% if agent_filter==ag %}selected{% endif %}>👤 {{ ag }}</option>
+      {% endfor %}
+    </select>
+
     <select name="priority" class="form-control" onchange="this.form.submit()" style="width:auto;padding:8px 32px 8px 12px;">
       <option value="">All Levels</option>
       {% if campaign_type == 'fp_l1' %}
@@ -52,7 +59,7 @@
     </select>
 
     <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
-    {% if search or status_filter or priority_filter %}
+    {% if search or status_filter or priority_filter or agent_filter %}
       <a href="{{ url_for('agent_campaign', campaign_type=campaign_type) }}" class="btn btn-ghost btn-sm">✕ Clear</a>
     {% endif %}
   </div>
@@ -60,21 +67,21 @@
 
 <!-- Quick filter chips -->
 <div class="filters-bar" style="margin-bottom:16px;gap:6px;">
-  <a href="{{ url_for('agent_campaign', campaign_type=campaign_type) }}"
+  <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, priority=priority_filter, agent_filter=agent_filter, search=search) }}"
      class="filter-chip {% if not status_filter %}active{% endif %}">All</a>
-  <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, status='Pending') }}"
+  <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, status='Pending', priority=priority_filter, agent_filter=agent_filter, search=search) }}"
      class="filter-chip {% if status_filter=='Pending' %}active{% endif %}">⏳ Pending</a>
-  <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, status='Follow Up') }}"
+  <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, status='Follow Up', priority=priority_filter, agent_filter=agent_filter, search=search) }}"
      class="filter-chip {% if status_filter=='Follow Up' %}active{% endif %}">🔁 Follow Up</a>
-  <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, status='Call Back Later') }}"
+  <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, status='Call Back Later', priority=priority_filter, agent_filter=agent_filter, search=search) }}"
      class="filter-chip {% if status_filter=='Call Back Later' %}active{% endif %}">📞 Call Back Later</a>
-  <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, status='Converted') }}"
+  <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, status='Converted', priority=priority_filter, agent_filter=agent_filter, search=search) }}"
      class="filter-chip {% if status_filter=='Converted' %}active{% endif %}">✅ Converted</a>
   {% if campaign_type == 'fp_l1' %}
-    <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, priority='L1') }}"
+    <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, priority='' if priority_filter=='L1' else 'L1', status=status_filter, agent_filter=agent_filter, search=search) }}"
        class="filter-chip {% if priority_filter=='L1' %}active{% endif %}">🔴 L1 Level Only</a>
   {% else %}
-    <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, priority='P1') }}"
+    <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, priority='' if priority_filter=='P1' else 'P1', status=status_filter, agent_filter=agent_filter, search=search) }}"
        class="filter-chip {% if priority_filter=='P1' %}active{% endif %}">🔴 P1 Level Only</a>
   {% endif %}
 </div>
@@ -124,7 +131,7 @@
         </td>
         <td>
           {% if lead.contacted_by %}
-            <span class="agent-tag">🎧 {{ lead.contacted_by }}</span>
+            <span class="agent-tag">🎧 Called by: {{ lead.contacted_by }}</span>
           {% else %}
             <span style="color:var(--text-muted);">—</span>
           {% endif %}
@@ -157,12 +164,12 @@
   {% if page > 1 or leads | length == 20 %}
   <div class="pagination">
     {% if page > 1 %}
-      <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, page=page-1, status=status_filter, priority=priority_filter, search=search) }}"
+      <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, page=page-1, status=status_filter, priority=priority_filter, agent_filter=agent_filter, search=search) }}"
          class="page-btn">‹ Prev</a>
     {% endif %}
     <span class="page-btn active">{{ page }}</span>
     {% if leads | length == 20 %}
-      <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, page=page+1, status=status_filter, priority=priority_filter, search=search) }}"
+      <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, page=page+1, status=status_filter, priority=priority_filter, agent_filter=agent_filter, search=search) }}"
          class="page-btn">Next ›</a>
     {% endif %}
   </div>
