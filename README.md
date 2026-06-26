@@ -85,9 +85,22 @@ graph TD
 * **Shared Lead Execution:** When an agent logs a call attempt/entry on a lead, the lead's `agent_name` column is updated to include all active agents.
 * **Immediate Visibility:** The lead dynamically appears on all agents' dashboards, allowing seamless team-wide tracking.
 
+### 🔓 Aligned Lead Access Rules
+* **Unified Access Check:** Enforces access rules using `has_lead_access(lead, user)` across all agent detail, logging, and status update API endpoints.
+* **Global Visibility for Shared States:** Leads in shared statuses (e.g. `Pending`, `Not Connected`, `DNP`, `Converted`, `Already Enrolled`, etc.) are globally viewable and loggable by any agent who has campaign permissions, resolving "Access denied" issues for new agents on older/pre-existing leads.
+* **Follow-up Ownership Security:** Follow-up tasks remain restricted so that only the agent who made the original call and scheduled the follow-up can view or log attempts on it.
+
 ### 🗑️ Global Visibility for Discarded Leads
 * **Discarded Lead Sharing:** When any lead is marked with the final status `Discarded` (either directly or via logging a call attempt outcome as `discarded`), it becomes globally visible and accessible to all agents who have permission for that campaign type.
 * **Open to Contact:** Discarded leads bypass ownership checks, allowing any permitted agent to view the lead's details, access call history / follow-up timelines, and log additional call attempts.
+
+### 🔍 Campaign Agent Filtering & Cleaner Tables
+* **Agent Filter Dropdown:** Agents can filter campaign leads dynamically using the Agent Filter Dropdown in the filter bar, which shows only the agents who have ever contacted leads in that campaign.
+* **Caller Display:** Clean table columns show the actual agent who called/contacted the lead (e.g. `🎧 Called by: Ameen`) instead of displaying a cluttered list of all auto-assigned agents.
+
+### 💾 Zero-Dependency Local Caching
+* **Read Cache:** Implements a memory-efficient, thread-safe local caching layer for allowed campaigns (5 min), campaign active agents (60s), and sidebar statistics (15s) to guarantee sub-second page loads and reduce database reads.
+
 
 ---
 
@@ -337,6 +350,14 @@ venv/bin/python test_show_all_agents_on_entry.py
 ---
 
 ## 📜 Changelog
+
+### v2.4 (June 2026)
+* **Optimization & Filtering Features:**
+  * Added campaign-wise **Agent Filter Dropdown** on all agent campaign pages.
+  * Preserved search, status, priority, and agent filters across all pagination links and quick status/priority chips.
+  * Aligned detail page and call log access checks to match listing visibility. Shared campaign leads (Pending, Not Connected, Converted, etc.) are now accessible to all campaign-allowed agents, fixing access denied errors for new agents.
+  * Optimized table layouts in all listings to display only the caller (e.g. `Called by: Ameen`) instead of the verbose comma-separated list of all 17 assigned agents.
+  * Implemented zero-dependency in-memory caching for allowed campaigns (5 min), campaign active agents (60s), and sidebar statistics (15s) to ensure instant page loads and minimize database read operations.
 
 ### v2.3 (June 2026)
 * **Bug Fixes:**
