@@ -261,6 +261,35 @@ def get_campaign_allowed_agents(campaign_type: str) -> list:
     return sorted_agents
 
 
+def has_lead_access(lead: dict, user: dict) -> tuple[bool, str]:
+    if user.get('role') == 'admin':
+        return True, ""
+        
+    agent_name = user.get('name', '')
+    allowed_campaigns = get_agent_allowed_campaigns(agent_name)
+    if lead.get('campaign_type') not in allowed_campaigns:
+        return False, "Access denied. You do not have access to this campaign."
+        
+    shared_statuses = [
+        'Pending', 'Not Connected', 'DNP', 'Switched Off', 
+        'Line Busy', 'Internet Issue', 'Call Failure', 
+        'Not Attended Class', 'Cut the Call', 
+        'Converted', 'Already Enrolled', 'Discarded'
+    ]
+    is_shared = lead.get('final_status') in shared_statuses
+    
+    assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
+    is_assigned = agent_name.lower() in [a.lower() for a in assigned_agents]
+    
+    if not is_shared and not is_assigned:
+        return False, "Access denied. This lead is not assigned to you."
+        
+    if lead.get('final_status') in FOLLOW_UP_STATUSES and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
+        return False, "Access denied. This follow-up is owned by another agent."
+        
+    return True, ""
+
+
 @app.context_processor
 def inject_allowed_campaigns():
     user = get_current_user()
@@ -1641,20 +1670,10 @@ def agent_lead_detail(lead_id):
             return redirect(url_for('agent_dashboard'))
 
         # Enforce agent access rules
-        if user['role'] != 'admin':
-            agent_name = user['name']
-            allowed = get_agent_allowed_campaigns(agent_name)
-            if lead.get('campaign_type') not in allowed:
-                flash('Access denied.', 'error')
-                return redirect(url_for('agent_dashboard'))
-            assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
-            if lead.get('final_status') not in ['Converted', 'Already Enrolled', 'Discarded']:
-                if agent_name.lower() not in [a.lower() for a in assigned_agents]:
-                    flash('Access denied.', 'error')
-                    return redirect(url_for('agent_dashboard'))
-            if lead.get('final_status') in FOLLOW_UP_STATUSES and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
-                flash('Access denied. This follow-up is owned by another agent.', 'error')
-                return redirect(url_for('agent_dashboard'))
+        allowed, err_msg = has_lead_access(lead, user)
+        if not allowed:
+            flash(err_msg, 'error')
+            return redirect(url_for('agent_dashboard'))
 
         calls_resp = supabase_admin.table('call_attempts').select('*').eq('lead_id', lead_id).order('attempt_number').execute()
         calls = calls_resp.data or []
@@ -1683,20 +1702,10 @@ def agent_call_log(lead_id):
             return redirect(url_for('agent_dashboard'))
 
         # Enforce agent access rules
-        if user['role'] != 'admin':
-            agent_name = user['name']
-            allowed = get_agent_allowed_campaigns(agent_name)
-            if lead.get('campaign_type') not in allowed:
-                flash('Access denied.', 'error')
-                return redirect(url_for('agent_dashboard'))
-            assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
-            if lead.get('final_status') not in ['Converted', 'Already Enrolled', 'Discarded']:
-                if agent_name.lower() not in [a.lower() for a in assigned_agents]:
-                    flash('Access denied.', 'error')
-                    return redirect(url_for('agent_dashboard'))
-            if lead.get('final_status') in FOLLOW_UP_STATUSES and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
-                flash('Access denied. This follow-up is owned by another agent.', 'error')
-                return redirect(url_for('agent_dashboard'))
+        allowed, err_msg = has_lead_access(lead, user)
+        if not allowed:
+            flash(err_msg, 'error')
+            return redirect(url_for('agent_dashboard'))
 
     except Exception as e:
         flash(f'Lead not found: {e}', 'error')
@@ -1880,20 +1889,10 @@ def agent_followup(lead_id):
             return redirect(url_for('agent_dashboard'))
 
         # Enforce agent access rules
-        if user['role'] != 'admin':
-            agent_name = user['name']
-            allowed = get_agent_allowed_campaigns(agent_name)
-            if lead.get('campaign_type') not in allowed:
-                flash('Access denied.', 'error')
-                return redirect(url_for('agent_dashboard'))
-            assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
-            if lead.get('final_status') not in ['Converted', 'Already Enrolled', 'Discarded']:
-                if agent_name.lower() not in [a.lower() for a in assigned_agents]:
-                    flash('Access denied.', 'error')
-                    return redirect(url_for('agent_dashboard'))
-            if lead.get('final_status') in FOLLOW_UP_STATUSES and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
-                flash('Access denied. This follow-up is owned by another agent.', 'error')
-                return redirect(url_for('agent_dashboard'))
+        allowed, err_msg = has_lead_access(lead, user)
+        if not allowed:
+            flash(err_msg, 'error')
+            return redirect(url_for('agent_dashboard'))
 
         calls_resp = supabase_admin.table('call_attempts').select('*').eq('lead_id', lead_id).order('attempt_number').execute()
         calls = calls_resp.data or []
@@ -2147,17 +2146,10 @@ def api_update_lead_status(lead_id):
         if not lead:
             return jsonify({'error': 'Lead not found'}), 404
 
-        if user['role'] != 'admin':
-            agent_name = user['name']
-            allowed = get_agent_allowed_campaigns(agent_name)
-            if lead.get('campaign_type') not in allowed:
-                return jsonify({'error': 'Access denied'}), 403
-            
-            assigned_agents = [a.strip() for a in (lead.get('agent_name') or '').split(',') if a.strip()]
-            if agent_name.lower() not in [a.lower() for a in assigned_agents]:
-                return jsonify({'error': 'Access denied'}), 403
-            if lead.get('final_status') in FOLLOW_UP_STATUSES and lead.get('contacted_by') and lead.get('contacted_by').lower() != agent_name.lower():
-                return jsonify({'error': 'Access denied. This follow-up is owned by another agent.'}), 403
+        # Enforce agent access rules
+        allowed, err_msg = has_lead_access(lead, user)
+        if not allowed:
+            return jsonify({'error': err_msg}), 403
 
         supabase_admin.table('leads').update({
             'final_status': new_status,
