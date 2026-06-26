@@ -196,6 +196,13 @@ def get_agent_allowed_campaigns(agent_name: str) -> list:
 
 
 @app.context_processor
+def inject_global_settings():
+    return {
+        'clarity_project_id': os.environ.get('CLARITY_PROJECT_ID', '')
+    }
+
+
+@app.context_processor
 def inject_allowed_campaigns():
     user = get_current_user()
     if not user:
