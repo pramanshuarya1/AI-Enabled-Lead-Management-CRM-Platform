@@ -16,7 +16,8 @@
   </div>
   {% if user.role == 'admin' %}
   <div class="page-header-right">
-    <a href="{{ url_for('admin_upload') }}?campaign_type={{ campaign_type }}" class="btn btn-primary btn-sm">📤 Upload Leads</a>
+    <a href="{{ url_for('admin_upload') }}?campaign_type={{ campaign_type }}" class="btn btn-primary btn-sm">📤 Upload
+      Leads</a>
   </div>
   {% endif %}
 </div>
@@ -28,39 +29,45 @@
       <input type="text" name="search" placeholder="Search by name or phone..." value="{{ search }}">
     </div>
 
-    <select name="status" class="form-control" onchange="this.form.submit()" style="width:auto;padding:8px 32px 8px 12px;">
+    <select name="status" class="form-control" onchange="this.form.submit()"
+      style="width:auto;padding:8px 32px 8px 12px;">
       <option value="">All Statuses</option>
-      <option value="Pending"          {% if status_filter=='Pending' %}selected{% endif %}>⏳ Pending</option>
-      <option value="Follow Up"        {% if status_filter=='Follow Up' %}selected{% endif %}>🔁 Follow Up</option>
-      <option value="Call Back Later"  {% if status_filter=='Call Back Later' %}selected{% endif %}>📞 Call Back Later</option>
-      <option value="Converted"        {% if status_filter=='Converted' %}selected{% endif %}>✅ Converted</option>
-      <option value="Already Enrolled" {% if status_filter=='Already Enrolled' %}selected{% endif %}>📋 Already Enrolled</option>
-      <option value="Not Interested"   {% if status_filter=='Not Interested' %}selected{% endif %}>❌ Not Interested</option>
-      <option value="Discarded"        {% if status_filter=='Discarded' %}selected{% endif %}>🗑 Discarded</option>
+      <option value="Pending" {% if status_filter=='Pending' %}selected{% endif %}>⏳ Pending</option>
+      <option value="Follow Up" {% if status_filter=='Follow Up' %}selected{% endif %}>🔁 Follow Up</option>
+      <option value="Call Back Later" {% if status_filter=='Call Back Later' %}selected{% endif %}>📞 Call Back Later
+      </option>
+      <option value="Converted" {% if status_filter=='Converted' %}selected{% endif %}>✅ Converted</option>
+      <option value="Already Enrolled" {% if status_filter=='Already Enrolled' %}selected{% endif %}>📋 Already Enrolled
+      </option>
+      <option value="Not Interested" {% if status_filter=='Not Interested' %}selected{% endif %}>❌ Not Interested
+      </option>
+      <option value="Discarded" {% if status_filter=='Discarded' %}selected{% endif %}>🗑 Discarded</option>
     </select>
 
-    <select name="agent_filter" class="form-control" onchange="this.form.submit()" style="width:auto;padding:8px 32px 8px 12px;">
+    <select name="agent_filter" class="form-control" onchange="this.form.submit()"
+      style="width:auto;padding:8px 32px 8px 12px;">
       <option value="">All Agents</option>
       {% for ag in agents %}
-        <option value="{{ ag }}" {% if agent_filter==ag %}selected{% endif %}>👤 {{ ag }}</option>
+      <option value="{{ ag }}" {% if agent_filter==ag %}selected{% endif %}>👤 {{ ag }}</option>
       {% endfor %}
     </select>
 
-    <select name="priority" class="form-control" onchange="this.form.submit()" style="width:auto;padding:8px 32px 8px 12px;">
+    <select name="priority" class="form-control" onchange="this.form.submit()"
+      style="width:auto;padding:8px 32px 8px 12px;">
       <option value="">All Levels</option>
       {% if campaign_type == 'fp_l1' %}
-        <option value="L1" {% if priority_filter=='L1' %}selected{% endif %}>🔴 L1 — High</option>
-        <option value="L2" {% if priority_filter=='L2' %}selected{% endif %}>🟡 L2 — Low</option>
+      <option value="L1" {% if priority_filter=='L1' %}selected{% endif %}>🔴 L1 — High</option>
+      <option value="L2" {% if priority_filter=='L2' %}selected{% endif %}>🟡 L2 — Low</option>
       {% else %}
-        <option value="P1" {% if priority_filter=='P1' %}selected{% endif %}>🔴 P1 — High</option>
-        <option value="P2" {% if priority_filter=='P2' %}selected{% endif %}>🟡 P2 — Medium</option>
-        <option value="P3" {% if priority_filter=='P3' %}selected{% endif %}>⚪ P3 — Low</option>
+      <option value="P1" {% if priority_filter=='P1' %}selected{% endif %}>🔴 P1 — High</option>
+      <option value="P2" {% if priority_filter=='P2' %}selected{% endif %}>🟡 P2 — Medium</option>
+      <option value="P3" {% if priority_filter=='P3' %}selected{% endif %}>⚪ P3 — Low</option>
       {% endif %}
     </select>
 
     <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
     {% if search or status_filter or priority_filter or agent_filter %}
-      <a href="{{ url_for('agent_campaign', campaign_type=campaign_type) }}" class="btn btn-ghost btn-sm">✕ Clear</a>
+    <a href="{{ url_for('agent_campaign', campaign_type=campaign_type) }}" class="btn btn-ghost btn-sm">✕ Clear</a>
     {% endif %}
   </div>
 </form>
@@ -68,21 +75,21 @@
 <!-- Quick filter chips -->
 <div class="filters-bar" style="margin-bottom:16px;gap:6px;">
   <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, priority=priority_filter, agent_filter=agent_filter, search=search) }}"
-     class="filter-chip {% if not status_filter %}active{% endif %}">All</a>
+    class="filter-chip {% if not status_filter %}active{% endif %}">All</a>
   <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, status='Pending', priority=priority_filter, agent_filter=agent_filter, search=search) }}"
-     class="filter-chip {% if status_filter=='Pending' %}active{% endif %}">⏳ Pending</a>
+    class="filter-chip {% if status_filter=='Pending' %}active{% endif %}">⏳ Pending</a>
   <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, status='Follow Up', priority=priority_filter, agent_filter=agent_filter, search=search) }}"
-     class="filter-chip {% if status_filter=='Follow Up' %}active{% endif %}">🔁 Follow Up</a>
+    class="filter-chip {% if status_filter=='Follow Up' %}active{% endif %}">🔁 Follow Up</a>
   <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, status='Call Back Later', priority=priority_filter, agent_filter=agent_filter, search=search) }}"
-     class="filter-chip {% if status_filter=='Call Back Later' %}active{% endif %}">📞 Call Back Later</a>
+    class="filter-chip {% if status_filter=='Call Back Later' %}active{% endif %}">📞 Call Back Later</a>
   <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, status='Converted', priority=priority_filter, agent_filter=agent_filter, search=search) }}"
-     class="filter-chip {% if status_filter=='Converted' %}active{% endif %}">✅ Converted</a>
+    class="filter-chip {% if status_filter=='Converted' %}active{% endif %}">✅ Converted</a>
   {% if campaign_type == 'fp_l1' %}
-    <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, priority='' if priority_filter=='L1' else 'L1', status=status_filter, agent_filter=agent_filter, search=search) }}"
-       class="filter-chip {% if priority_filter=='L1' %}active{% endif %}">🔴 L1 Level Only</a>
+  <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, priority='' if priority_filter=='L1' else 'L1', status=status_filter, agent_filter=agent_filter, search=search) }}"
+    class="filter-chip {% if priority_filter=='L1' %}active{% endif %}">🔴 L1 Level Only</a>
   {% else %}
-    <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, priority='' if priority_filter=='P1' else 'P1', status=status_filter, agent_filter=agent_filter, search=search) }}"
-       class="filter-chip {% if priority_filter=='P1' %}active{% endif %}">🔴 P1 Level Only</a>
+  <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, priority='' if priority_filter=='P1' else 'P1', status=status_filter, agent_filter=agent_filter, search=search) }}"
+    class="filter-chip {% if priority_filter=='P1' %}active{% endif %}">🔴 P1 Level Only</a>
   {% endif %}
 </div>
 
@@ -110,30 +117,32 @@
         <td>
           <div style="font-weight:600;">{{ lead.lead_name or '—' }}</div>
           {% if lead.email %}
-            <div style="font-size:0.75rem;color:var(--text-muted);">{{ lead.email }}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);">{{ lead.email }}</div>
           {% endif %}
         </td>
         <td class="phone-num">{{ lead.contact_no | mask_phone(user.role, lead.final_status) }}</td>
         <td style="max-width:180px;">
           <div class="truncate" title="{{ lead.bootcamp_title }}">{{ lead.bootcamp_title or '—' }}</div>
           {% if lead.amount %}
-            <div style="font-size:0.75rem;color:var(--text-muted);">{{ lead.amount | inr }}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);">{{ lead.amount | inr }}</div>
           {% endif %}
         </td>
         <td class="muted" style="white-space: nowrap;">
           <div>{{ lead.bootcamp_date or '—' }}</div>
           {% if campaign_type == 'fp_l1' and lead.fp_time %}
-            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">⏰ {{ lead.fp_time | format_time }}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">⏰ {{ lead.fp_time | format_time }}
+          </div>
           {% endif %}
         </td>
         <td>
-          <span class="{{ lead.priority | priority_class }}">{{ lead.priority | display_level(lead.campaign_type) }}</span>
+          <span class="{{ lead.priority | priority_class }}">{{ lead.priority | display_level(lead.campaign_type)
+            }}</span>
         </td>
         <td>
           {% if lead.contacted_by %}
-            <span class="agent-tag">🎧 Called by: {{ lead.contacted_by }}</span>
+          <span class="agent-tag">🎧 {{ lead.contacted_by }}</span>
           {% else %}
-            <span style="color:var(--text-muted);">—</span>
+          <span style="color:var(--text-muted);">—</span>
           {% endif %}
         </td>
         <td>
@@ -149,9 +158,10 @@
           <div style="display:flex;gap:6px;">
             <a href="{{ url_for('agent_lead_detail', lead_id=lead.id) }}" class="btn btn-ghost btn-sm">📋</a>
             {% if lead.final_status in ['Converted', 'Already Enrolled'] and user.role != 'admin' %}
-              <button class="btn btn-secondary btn-sm" style="opacity:0.5; cursor:not-allowed;" disabled>🚫 Blocked</button>
+            <button class="btn btn-secondary btn-sm" style="opacity:0.5; cursor:not-allowed;" disabled>🚫
+              Blocked</button>
             {% else %}
-              <a href="{{ url_for('agent_call_log', lead_id=lead.id) }}" class="btn btn-primary btn-sm">📞 Call</a>
+            <a href="{{ url_for('agent_call_log', lead_id=lead.id) }}" class="btn btn-primary btn-sm">📞 Call</a>
             {% endif %}
           </div>
         </td>
@@ -164,13 +174,13 @@
   {% if page > 1 or leads | length == 20 %}
   <div class="pagination">
     {% if page > 1 %}
-      <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, page=page-1, status=status_filter, priority=priority_filter, agent_filter=agent_filter, search=search) }}"
-         class="page-btn">‹ Prev</a>
+    <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, page=page-1, status=status_filter, priority=priority_filter, agent_filter=agent_filter, search=search) }}"
+      class="page-btn">‹ Prev</a>
     {% endif %}
     <span class="page-btn active">{{ page }}</span>
     {% if leads | length == 20 %}
-      <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, page=page+1, status=status_filter, priority=priority_filter, agent_filter=agent_filter, search=search) }}"
-         class="page-btn">Next ›</a>
+    <a href="{{ url_for('agent_campaign', campaign_type=campaign_type, page=page+1, status=status_filter, priority=priority_filter, agent_filter=agent_filter, search=search) }}"
+      class="page-btn">Next ›</a>
     {% endif %}
   </div>
   {% endif %}
@@ -179,7 +189,8 @@
   <div class="empty-state">
     <span class="empty-icon">📭</span>
     <h3>No leads found</h3>
-    <p>{% if search or status_filter or priority_filter %}Try adjusting your filters{% else %}No leads assigned to this campaign yet{% endif %}</p>
+    <p>{% if search or status_filter or priority_filter %}Try adjusting your filters{% else %}No leads assigned to this
+      campaign yet{% endif %}</p>
   </div>
   {% endif %}
 </div>
