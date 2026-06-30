@@ -369,5 +369,6 @@ venv/bin/python test_show_all_agents_on_entry.py
   * Added team-wide auto-sharing on call entry (any call attempt updates lead assignments to all active agents automatically).
   * Made all unconnected statuses (Not Connected, DNP, Switched Off, Line Busy, Call Failure) and "Not Attended Class" visible to all agents in the campaign.
 
-### Developed by Ankit Dahiya @2026
+       ### Developed by Ankit Dahiya @2026
+     ##eMAIL-: dahiyaankit38@gmail.com
 
